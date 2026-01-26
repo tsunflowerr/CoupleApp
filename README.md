@@ -6,7 +6,7 @@ A comprehensive Android app designed exclusively for couples to connect, share m
 
 **Latest Version: v1.0**
 
-👉 **[Download APK](https://github.com/tsunflowerr/CoupleApp/releases)** 👈
+👉 **[Download APK]([https://github.com/tsunflowerr/CoupleApp/releases](https://drive.google.com/drive/folders/18eTvzdurdxFgo9nWdJML9Jabm6UJXUDu?usp=sharing))** 👈
 
 Or scan this QR code to download directly on your phone.
 
@@ -14,7 +14,6 @@ Or scan this QR code to download directly on your phone.
 
 ---
 
-## 📱 Key Features
 
 ## 📱 Key Features
 
@@ -74,7 +73,6 @@ Or scan this QR code to download directly on your phone.
 - Store and manage shared photo albums
 - Organize photos by location and time
 
-## 🛠️ Technology Stack
 
 ## 🛠️ Technology Stack
 
@@ -189,7 +187,7 @@ The app includes 4 home screen widgets:
 - **Health Connect**: Sync sleep data
 - **Activity Recognition**: Google Sleep API
 
-## 🏗️ Project Structure
+
 
 ## 🏗️ Project Structure
 
@@ -233,15 +231,6 @@ This project is developed for educational and personal purposes.
 
 Developed by UET-VNU students
 
-## 📞 Contact & Support
-
-- **GitHub Issues**: [Report bugs here](https://github.com/tsunflowerr/CoupleApp/issues)
-- **Discussions**: [Join discussions](https://github.com/tsunflowerr/CoupleApp/discussions)
-- **Email**: Contact via GitHub profile
-
-## 🌟 Screenshots
-
-> Coming soon! We'll add app screenshots in the next update.
 
 ## 🔄 Version History
 
