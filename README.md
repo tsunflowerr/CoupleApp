@@ -1,88 +1,104 @@
 # 💕 CoupleApp
 
-Ứng dụng dành riêng cho các cặp đôi để kết nối, chia sẻ khoảnh khắc và theo dõi cuộc sống chung một cách thú vị và ý nghĩa.
+A comprehensive Android app designed exclusively for couples to connect, share moments, and track their relationship journey in meaningful and fun ways.
 
-## 📱 Tính năng chính
+## 📥 Download
 
-### 🔗 Partner Hub - Trung tâm kết nối
-- **Liên kết đôi**: Kết nối với người yêu qua mã PIN độc nhất
-- **Chat realtime**: Trò chuyện trực tiếp với giao diện đẹp mắt
-- **Q&A**: Trả lời các câu hỏi để hiểu nhau hơn
+**Latest Version: v1.0**
 
-### 📸 Locket - Ảnh tức thì
-- Gửi ảnh selfie tức thời đến màn hình chính của người yêu
-- Hỗ trợ nhiều loại nội dung: Ảnh, Emoji, Vẽ tay, Text
-- Lịch sử Locket với khả năng xem lại và xóa
-- Widget hiển thị ngay trên màn hình chính
+👉 **[Download APK](https://github.com/tsunflowerr/CoupleApp/releases)** 👈
 
-### 💌 Missing - Nhớ nhau
-- Gửi "I miss you" bằng một chạm
-- Theo dõi số lần nhớ nhau của cả hai
-- Streak (chuỗi ngày liên tiếp) để động viên nhớ nhau hàng ngày
-- Widget hiển thị trạng thái missing
+Or scan this QR code to download directly on your phone.
 
-### 📍 Distance - Khoảng cách
-- **Theo dõi khoảng cách realtime** giữa hai người
-- **Lịch sử vị trí**: Xem lại hành trình di chuyển trong ngày
-- **Shared Places**: Đánh dấu các địa điểm quan trọng (Nhà, Nơi làm việc, Nơi hẹn hò)
-- **Place Photos**: Lưu ảnh gắn với địa điểm cụ thể
-- **Colocation tracking**: Tự động phát hiện khi ở cùng nhau
-- **Background tracking**: Theo dõi vị trí ngay cả khi app đóng
-- Widget hiển thị khoảng cách và vị trí
+> **Note**: Enable "Install from Unknown Sources" in your device settings before installing.
 
-### 😴 Sleep Tracker - Theo dõi giấc ngủ
-- Tích hợp Health Connect để đồng bộ dữ liệu giấc ngủ
-- So sánh thời gian ngủ của cả hai
-- Đặt mục tiêu giấc ngủ
-- Gợi ý thời gian đi ngủ lý tưởng
-- Widget hiển thị trạng thái giấc ngủ
+---
 
-### 📅 Calendar - Lịch đôi
-- Đánh dấu ngày kỷ niệm (First date, First kiss, Anniversary)
-- Horoscope hàng ngày dựa trên cung hoàng đạo
-- Đếm ngược đến các sự kiện quan trọng
-- Cài đặt emoji đại diện cho từng người
+## 📱 Key Features
 
-### 🌸 Garden - Vườn hoa tình yêu
-- Trồng và chăm sóc cây dựa trên mức độ tương tác
-- Mỗi hoạt động (chat, locket, missing) sẽ tưới nước cho cây
-- Theo dõi sự phát triển của khu vườn chung
+## 📱 Key Features
 
-### 🏆 Quest - Nhiệm vụ
-- Hoàn thành các nhiệm vụ đôi để nhận thưởng
-- Tích điểm và mở khóa các tính năng mới
+### 🔗 Partner Hub - Connection Center
+- **Link with Partner**: Connect with your loved one via unique PIN code
+- **Realtime Chat**: Direct messaging with beautiful, intuitive interface
+- **Q&A**: Answer questions together to understand each other better
 
-### 🎁 Store - Cửa hàng
-- Mua sắm các items độc đáo bằng điểm tích lũy
-- Trang trí profile và app theo phong cách riêng
+### 📸 Locket - Instant Photo Sharing
+- Send instant selfies directly to your partner's home screen
+- Support multiple content types: Photos, Emojis, Drawings, Text messages
+- Locket history with view and delete capabilities
+- Home screen widget for instant access
 
-### 📷 Moments - Khoảnh khắc
-- Lưu trữ và quản lý album ảnh chung
-- Phân loại ảnh theo địa điểm và thời gian
+### 💌 Missing - Express Your Feelings
+- Send "I miss you" with a single tap
+- Track how many times you both miss each other
+- Streak system to encourage daily connection
+- Widget for quick missing messages
 
-## 🛠️ Công nghệ sử dụng
+### 📍 Distance - Stay Close
+- **Realtime distance tracking** between you two
+- **Location history**: Review your movement patterns throughout the day
+- **Shared Places**: Mark important locations (Home, Work, Date spots)
+- **Place Photos**: Save memories tied to specific locations
+- **Colocation tracking**: Auto-detect when you're together
+- **Background tracking**: Monitor location even when app is closed
+- Widget displaying current distance and locations
 
-- **Framework**: Jetpack Compose (UI hiện đại, declarative)
-- **Ngôn ngữ**: Kotlin
+### 😴 Sleep Tracker - Better Rest Together
+- Integrate with Health Connect for sleep data sync
+- Compare sleep patterns between partners
+- Set sleep goals and track progress
+- Get smart bedtime recommendations
+- Widget showing sleep status
+
+### 📅 Calendar - Your Shared Timeline
+- Mark important dates (First date, First kiss, Anniversary)
+- Daily horoscope based on zodiac signs
+- Countdown to special events
+- Customize with personal emojis
+
+### 🌸 Garden - Love Garden
+- Grow and nurture plants based on your interactions
+- Every activity (chat, locket, missing) waters your garden
+- Watch your shared garden flourish over time
+
+### 🏆 Quest - Relationship Challenges
+- Complete couple challenges to earn rewards
+- Accumulate points to unlock new features
+
+### 🎁 Store - In-App Shop
+- Purchase unique items with earned points
+- Customize profiles and app appearance
+
+### 📷 Moments - Photo Memories
+- Store and manage shared photo albums
+- Organize photos by location and time
+
+## 🛠️ Technology Stack
+
+## 🛠️ Technology Stack
+
+- **Framework**: Jetpack Compose (Modern, declarative UI)
+- **Language**: Kotlin
 - **Backend**: Firebase (Firestore, Storage, Auth, FCM)
 - **Architecture**: MVVM + Repository Pattern
 - **DI**: Dagger Hilt
 - **Maps**: Google Maps SDK
 - **Health**: Health Connect API
 - **Location**: Fused Location Provider + Background Service
-- **Widgets**: AppWidget với RemoteViews
+- **Widgets**: AppWidget with RemoteViews
 - **Min SDK**: 26 (Android 8.0)
 - **Target SDK**: 36
 
-## 🚀 Cài đặt & Chạy
+## 🚀 Installation & Setup
 
-### Yêu cầu
-- Android Studio Iguana hoặc mới hơn
+### Requirements
+- Android Studio Iguana or newer
 - JDK 11
 - Android SDK 36
 - Firebase Project
 
-### Các bước setup
+### Setup Steps
 
 1. **Clone repository**
 ```bash
@@ -90,20 +106,20 @@ git clone https://github.com/tsunflowerr/CoupleApp.git
 cd CoupleApp
 ```
 
-2. **Tạo Firebase Project**
-   - Truy cập [Firebase Console](https://console.firebase.google.com/)
-   - Tạo project mới
-   - Thêm Android app với package name: `com.example.coupleapp`
-   - Download file `google-services.json` và đặt vào `app/`
+2. **Create Firebase Project**
+   - Go to [Firebase Console](https://console.firebase.google.com/)
+   - Create a new project
+   - Add Android app with package name: `com.example.coupleapp`
+   - Download `google-services.json` and place it in `app/`
 
 3. **Enable Firebase Services**
    - **Authentication**: Phone, Email/Password
-   - **Firestore Database**: Tạo database
-   - **Storage**: Tạo bucket
+   - **Firestore Database**: Create database
+   - **Storage**: Create storage bucket
    - **Cloud Messaging**: Enable FCM
-   - **Realtime Database**: Tạo database (cho presence)
+   - **Realtime Database**: Create database (for presence)
 
-4. **Import Firestore Rules**
+4. **Deploy Firestore Rules**
 ```bash
 firebase deploy --only firestore:rules
 firebase deploy --only storage:rules
@@ -111,10 +127,10 @@ firebase deploy --only database:rules
 ```
 
 5. **Google Maps API Key**
-   - Truy cập [Google Cloud Console](https://console.cloud.google.com/)
+   - Go to [Google Cloud Console](https://console.cloud.google.com/)
    - Enable Maps SDK for Android
-   - Tạo API Key với restrictions phù hợp
-   - Tạo file `local.properties` ở thư mục gốc:
+   - Create API Key with appropriate restrictions
+   - Create `local.properties` file in root directory:
 ```properties
 sdk.dir=/path/to/Android/sdk
 MAPS_API_KEY=YOUR_GOOGLE_MAPS_API_KEY_HERE
@@ -125,7 +141,7 @@ MAPS_API_KEY=YOUR_GOOGLE_MAPS_API_KEY_HERE
 ./gradlew assembleDebug
 ```
 
-Hoặc mở project trong Android Studio và nhấn Run (Shift+F10)
+Or open project in Android Studio and press Run (Shift+F10)
 
 ## 📦 Build APK
 
@@ -133,15 +149,15 @@ Hoặc mở project trong Android Studio và nhấn Run (Shift+F10)
 ```bash
 ./gradlew assembleDebug
 ```
-File output: `app/build/outputs/apk/debug/app-debug.apk`
+Output: `app/build/outputs/apk/debug/app-debug.apk`
 
 ### Release APK (Signed)
-1. Tạo keystore:
+1. Generate keystore:
 ```bash
 keytool -genkey -v -keystore coupleapp.keystore -alias coupleapp -keyalg RSA -keysize 2048 -validity 10000
 ```
 
-2. Thêm vào `local.properties`:
+2. Add to `local.properties`:
 ```properties
 KEYSTORE_FILE=../coupleapp.keystore
 KEYSTORE_PASSWORD=your_password
@@ -156,24 +172,26 @@ KEY_PASSWORD=your_password
 
 ## 📱 Widget Support
 
-App hỗ trợ 4 loại widget:
-- **Sleep Widget**: Hiển thị trạng thái giấc ngủ của cả hai
-- **Locket Widget**: Hiển thị ảnh Locket mới nhất
-- **Missing Widget**: Nút gửi "I miss you" nhanh
-- **Location Widget**: Hiển thị khoảng cách realtime
+The app includes 4 home screen widgets:
+- **Sleep Widget**: Display sleep status of both partners
+- **Locket Widget**: Show latest locket photo
+- **Missing Widget**: Quick "I miss you" button
+- **Location Widget**: Display realtime distance
 
-## 🔐 Quyền yêu cầu
+## 🔐 Required Permissions
 
-- **Camera**: Chụp ảnh Locket
-- **Storage**: Truy cập gallery
-- **Location**: Tính khoảng cách và shared places
-  - Fine Location (GPS chính xác)
-  - Background Location (Theo dõi khi app đóng)
-- **Notifications**: Nhận thông báo từ người yêu
-- **Health Connect**: Đồng bộ dữ liệu giấc ngủ
+- **Camera**: Take locket photos
+- **Storage**: Access gallery
+- **Location**: Calculate distance and shared places
+  - Fine Location (Precise GPS)
+  - Background Location (Track when app is closed)
+- **Notifications**: Receive notifications from partner
+- **Health Connect**: Sync sleep data
 - **Activity Recognition**: Google Sleep API
 
-## 🏗️ Cấu trúc project
+## 🏗️ Project Structure
+
+## 🏗️ Project Structure
 
 ```
 app/src/main/java/com/example/coupleapp/
@@ -186,7 +204,7 @@ app/src/main/java/com/example/coupleapp/
 │   ├── UnifiedFCMService.kt
 │   └── GeofenceReceiver.kt
 ├── ui/                 # UI layer
-│   ├── screens/        # Màn hình chính
+│   ├── screens/        # Main screens
 │   ├── components/     # Reusable components
 │   └── theme/          # Theme & styling
 ├── viewmodel/          # ViewModels
@@ -198,28 +216,47 @@ app/src/main/java/com/example/coupleapp/
 
 ```
 
-## 🤝 Đóng góp
+## 🤝 Contributing
 
-Mọi đóng góp đều được chào đón! Vui lòng:
-1. Fork repository
-2. Tạo branch mới (`git checkout -b feature/AmazingFeature`)
-3. Commit changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to branch (`git push origin feature/AmazingFeature`)
-5. Mở Pull Request
+Contributions are welcome! Please:
+1. Fork the repository
+2. Create a new branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
 ## 📄 License
 
-Project này được phát triển cho mục đích học tập và cá nhân.
+This project is developed for educational and personal purposes.
 
-## 👥 Tác giả
+## 👥 Authors
 
-Được phát triển bởi nhóm sinh viên UET-VNU
+Developed by UET-VNU students
 
-## 📞 Liên hệ & Hỗ trợ
+## 📞 Contact & Support
 
-- **GitHub Issues**: [Báo lỗi tại đây](https://github.com/tsunflowerr/CoupleApp/issues)
-- **Email**: Liên hệ qua GitHub profile
+- **GitHub Issues**: [Report bugs here](https://github.com/tsunflowerr/CoupleApp/issues)
+- **Discussions**: [Join discussions](https://github.com/tsunflowerr/CoupleApp/discussions)
+- **Email**: Contact via GitHub profile
+
+## 🌟 Screenshots
+
+> Coming soon! We'll add app screenshots in the next update.
+
+## 🔄 Version History
+
+### v1.0 (Current)
+- Initial release
+- All core features implemented
+- Partner Hub, Locket, Missing, Distance, Sleep Tracker
+- Calendar, Garden, Quest, Store, Moments
+- 4 home screen widgets
+- Background location & sleep tracking
+- Firebase integration
 
 ---
 
-💝 Được làm với tình yêu cho các cặp đôi
+💝 Made with love for couples everywhere
+
+**Star ⭐ this repository if you find it helpful!**
+
