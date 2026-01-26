@@ -14,12 +14,9 @@ object FirebaseConstants {
     
     /**
      * Firebase Realtime Database URL for chat messaging
-     * Currently using a separate project for Realtime Database
-     * 
-     * To use the main project's database, change to:
-     * "https://coupleapp-46367-default-rtdb.asia-southeast1.firebasedatabase.app/"
+     * Using the main project's Realtime Database
      */
-    const val REALTIME_DATABASE_URL = "https://coupleapp-69f4c-default-rtdb.asia-southeast1.firebasedatabase.app/"
+    const val REALTIME_DATABASE_URL = "https://coupleapp-46367-default-rtdb.asia-southeast1.firebasedatabase.app/"
     
     // Chat paths
     const val CHATS_PATH = "chats"
