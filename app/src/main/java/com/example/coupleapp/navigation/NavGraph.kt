@@ -813,9 +813,14 @@ fun NavGraph(
                 onBackClick = {
                     navController.popBackStack()
                 },
-                onSaveDrawing = { paths ->
-                    // Convert paths to Bitmap
-                    val bitmap = com.example.coupleapp.ui.screens.locket.convertPathsToBitmap(paths, 800, 800)
+                onSaveDrawing = { paths, canvasWidth, canvasHeight ->
+                    // Convert paths to Bitmap with proper scaling
+                    val bitmap = com.example.coupleapp.ui.screens.locket.convertPathsToBitmap(
+                        drawingPaths = paths, 
+                        canvasWidth = canvasWidth, 
+                        canvasHeight = canvasHeight,
+                        outputSize = 800
+                    )
                     locketViewModel.setDrawingBitmap(bitmap)
                     navController.popBackStack()
                 }

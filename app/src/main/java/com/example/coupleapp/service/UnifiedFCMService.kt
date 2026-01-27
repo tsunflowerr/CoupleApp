@@ -13,6 +13,7 @@ import androidx.core.app.NotificationCompat
 import com.example.coupleapp.CoupleApplication
 import com.example.coupleapp.MainActivity
 import com.example.coupleapp.R
+import com.example.coupleapp.ui.screens.profile.NotificationPreferences
 import com.example.coupleapp.widget.LocketWidgetProvider
 import com.example.coupleapp.widget.MissingWidgetProvider
 import com.example.coupleapp.widget.data.WidgetDataRepository
@@ -354,6 +355,7 @@ class UnifiedFCMService : FirebaseMessagingService() {
 
     /**
      * Show local notification with deduplication.
+     * Respects user's notification preferences.
      */
     private fun showNotification(
         title: String,
@@ -361,6 +363,19 @@ class UnifiedFCMService : FirebaseMessagingService() {
         type: String,
         notificationId: Int = NOTIFICATION_ID_MESSAGE
     ) {
+        // ========== CHECK NOTIFICATION PREFERENCES ==========
+        val isNotificationEnabled = when (type) {
+            TYPE_MESSAGE -> NotificationPreferences.isMessageNotificationEnabled(this)
+            TYPE_MISSING -> NotificationPreferences.isMissingNotificationEnabled(this)
+            TYPE_LOCKET -> NotificationPreferences.isLocketNotificationEnabled(this)
+            else -> NotificationPreferences.isPushEnabled(this)
+        }
+        
+        if (!isNotificationEnabled) {
+            Log.d(TAG, "⚠️ Notification disabled in settings for type: $type")
+            return
+        }
+        
         // ========== DEDUPLICATION CHECK ==========
         val dedupKey = "${type}_notification"
         val currentTime = System.currentTimeMillis()

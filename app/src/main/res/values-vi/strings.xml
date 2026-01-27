@@ -613,6 +613,11 @@
     <string name="faq_link_partner_answer">Vào Hồ sơ > Quản lý liên kết và chia sẻ mã liên kết với người yêu. Họ có thể nhập mã của bạn trong ứng dụng để kết nối.</string>
     <string name="faq_send_locket">Làm thế nào để gửi Locket?</string>
     <string name="faq_send_locket_answer">Nhấn vào tính năng Locket từ màn hình chính hoặc hồ sơ. Chọn emoji, văn bản, ảnh hoặc hình vẽ để gửi cho người yêu.</string>
+    <string name="faq_send_locket_question">Làm thế nào để gửi Locket?</string>
+    <string name="faq_what_types_question">Tôi có thể gửi những loại nội dung nào?</string>
+    <string name="faq_what_types_answer">Bạn có thể gửi ảnh, emoji, hình vẽ hoặc tin nhắn văn bản cho người yêu.</string>
+    <string name="faq_history_question">Tôi có thể xem lịch sử Locket ở đâu?</string>
+    <string name="faq_history_answer">Nhấn vào tùy chọn Lịch sử trong Cài đặt để xem tất cả Locket đã gửi và nhận.</string>
     <string name="faq_quests">Nhiệm vụ là gì?</string>
     <string name="faq_quests_answer">Nhiệm vụ là những thử thách hàng ngày mà bạn và người yêu có thể hoàn thành cùng nhau để kiếm xu và gắn kết hơn.</string>
     <string name="faq_sleep_tracking">Theo dõi giấc ngủ hoạt động như thế nào?</string>

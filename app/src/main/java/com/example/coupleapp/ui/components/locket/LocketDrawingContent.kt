@@ -1,5 +1,6 @@
 package com.example.coupleapp.ui.components.locket
 
+import android.graphics.Bitmap
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Brush
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -15,6 +17,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -29,6 +33,7 @@ import com.example.coupleapp.R
 @Composable
 fun LocketDrawingContent(
     hasDrawing: Boolean,
+    drawingBitmap: Bitmap? = null,
     onOpenDrawing: () -> Unit,
     onSendDrawing: () -> Unit,
     isSending: Boolean = false,
@@ -45,25 +50,49 @@ fun LocketDrawingContent(
                 .padding(horizontal = 24.dp)
                 .aspectRatio(1f)
                 .clip(RoundedCornerShape(24.dp))
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0xFFFFF0E8),
-                            Color(0xFFFFE8E0)
+                .then(
+                    if (drawingBitmap != null) {
+                        Modifier.background(Color.White)
+                    } else {
+                        Modifier.background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    Color(0xFFFFF0E8),
+                                    Color(0xFFFFE8E0)
+                                )
+                            )
                         )
-                    )
+                    }
                 )
                 .clickable { onOpenDrawing() },
             contentAlignment = Alignment.Center
         ) {
-            if (hasDrawing) {
-                // Show saved drawing
-                Text(
-                    text = stringResource(R.string.your_drawing),
-                    color = Color(0xFF2D2D2D),
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Medium
+            if (drawingBitmap != null) {
+                // Show actual drawing preview
+                Image(
+                    bitmap = drawingBitmap.asImageBitmap(),
+                    contentDescription = stringResource(R.string.your_drawing),
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit
                 )
+                
+                // Edit overlay icon
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(12.dp)
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color.Black.copy(alpha = 0.5f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Edit drawing",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             } else {
                 // Placeholder
                 Column(

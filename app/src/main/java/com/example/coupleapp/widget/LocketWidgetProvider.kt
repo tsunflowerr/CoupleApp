@@ -351,8 +351,8 @@ class LocketWidgetProvider : AppWidgetProvider() {
                 
                 if (originalBitmap != null) {
                     Log.d(TAG, "Bitmap loaded: ${originalBitmap.width}x${originalBitmap.height}")
-                    // Scale down for widget to save memory (max 512px)
-                    scaleBitmapForWidget(originalBitmap, 512)
+                    // Scale down for widget to save memory (max 800px for better quality)
+                    scaleBitmapForWidget(originalBitmap, 800)
                 } else {
                     Log.w(TAG, "Failed to load bitmap")
                     null
@@ -400,8 +400,8 @@ class LocketWidgetProvider : AppWidgetProvider() {
             }
             BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size, boundsOptions)
             
-            // Calculate inSampleSize for memory efficiency (target 512px max)
-            val maxSize = 512
+            // Calculate inSampleSize for memory efficiency (target 800px max for better quality)
+            val maxSize = 800
             var sampleSize = 1
             if (boundsOptions.outWidth > maxSize || boundsOptions.outHeight > maxSize) {
                 val halfWidth = boundsOptions.outWidth / 2
@@ -411,10 +411,10 @@ class LocketWidgetProvider : AppWidgetProvider() {
                 }
             }
             
-            // Decode with calculated sample size and RGB_565 for less memory
+            // Decode with calculated sample size - use ARGB_8888 for better quality
             val decodeOptions = BitmapFactory.Options().apply {
                 inSampleSize = sampleSize
-                inPreferredConfig = Bitmap.Config.RGB_565 // Uses 2 bytes per pixel instead of 4
+                inPreferredConfig = Bitmap.Config.ARGB_8888 // Better quality than RGB_565
             }
             val bitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size, decodeOptions)
             if (bitmap == null) {
@@ -464,8 +464,8 @@ class LocketWidgetProvider : AppWidgetProvider() {
             }
             BitmapFactory.decodeByteArray(bytes, 0, bytes.size, boundsOptions)
             
-            // Calculate sample size for memory efficiency
-            val maxSize = 512
+            // Calculate sample size for memory efficiency (800px for better quality)
+            val maxSize = 800
             var sampleSize = 1
             if (boundsOptions.outWidth > maxSize || boundsOptions.outHeight > maxSize) {
                 val halfWidth = boundsOptions.outWidth / 2
@@ -475,10 +475,10 @@ class LocketWidgetProvider : AppWidgetProvider() {
                 }
             }
             
-            // Decode with calculated options
+            // Decode with calculated options - use ARGB_8888 for better quality
             val decodeOptions = BitmapFactory.Options().apply {
                 inSampleSize = sampleSize
-                inPreferredConfig = Bitmap.Config.RGB_565
+                inPreferredConfig = Bitmap.Config.ARGB_8888 // Better quality
             }
             BitmapFactory.decodeByteArray(bytes, 0, bytes.size, decodeOptions)
         } catch (e: Exception) {

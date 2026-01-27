@@ -249,8 +249,7 @@ fun DistanceScreen(
                         .statusBarsPadding()
                 ) {
                     DistanceTopBar(
-                        onBackClick = onBackClick,
-                        onSettingsClick = { viewModel.showSettings() }
+                        onBackClick = onBackClick
                     )
                 }
                 
@@ -364,13 +363,6 @@ fun DistanceScreen(
                         onNavigateToPlacePhotos(place.id)
                         selectedSharedPlace = null
                     }
-                )
-            }
-            
-            // Settings Dialog
-            if (uiState.showSettingsDialog) {
-                DistanceSettingsDialog(
-                    onDismiss = { viewModel.dismissSettings() }
                 )
             }
         }

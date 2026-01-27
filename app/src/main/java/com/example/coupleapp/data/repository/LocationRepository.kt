@@ -591,11 +591,12 @@ class LocationRepository(
             // Calculate cutoff date for filtering (3 days ago)
             val threeDaysAgo = java.time.LocalDate.now().minusDays(3)
             
-            // Note: Removed orderBy to avoid index requirement - sorting locally
+            // Query with orderBy to ensure consistent ordering (index already exists in firestore.indexes.json)
             val snapshot = db.collection(LOCATION_HISTORY_COLLECTION)
                 .whereEqualTo("userId", userId)
                 .whereEqualTo("coupleId", coupleId)
-                .limit(100) // Increased limit to ensure we get enough entries
+                .orderBy("arrivalTime", Query.Direction.DESCENDING)
+                .limit(100)
                 .get()
                 .await()
             
@@ -669,6 +670,7 @@ class LocationRepository(
         val subscription = db.collection(LOCATION_HISTORY_COLLECTION)
             .whereEqualTo("userId", userId)
             .whereEqualTo("coupleId", coupleId)
+            .orderBy("arrivalTime", Query.Direction.DESCENDING)
             .limit(100)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {

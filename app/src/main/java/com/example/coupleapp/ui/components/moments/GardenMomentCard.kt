@@ -86,6 +86,8 @@ fun GardenMomentCard(
                         GardenEventType.EVOLVED -> Color(0xFFFF9800) to "✨ Evolved"
                         GardenEventType.HARVESTED -> Color(0xFFE91E63) to "🎉 Harvested"
                         GardenEventType.WILTED -> Color(0xFF9E9E9E) to "😢 Wilted"
+                        GardenEventType.NEEDS_WATER -> Color(0xFF03A9F4) to "💧 Cần nước!"
+                        GardenEventType.NEEDS_SUN -> Color(0xFFFFC107) to "☀️ Cần ánh sáng!"
                     }
                     
                     Surface(

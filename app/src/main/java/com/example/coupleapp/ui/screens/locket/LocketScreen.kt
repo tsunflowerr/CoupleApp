@@ -1,6 +1,9 @@
 package com.example.coupleapp.ui.screens.locket
 
+import android.content.ContentValues
 import android.graphics.Bitmap
+import android.os.Build
+import android.os.Environment
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
@@ -42,6 +45,8 @@ import kotlinx.coroutines.launch
 import kotlin.math.abs
 import android.graphics.BitmapFactory
 import android.provider.MediaStore
+import java.io.File
+import java.io.FileOutputStream
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -180,7 +185,23 @@ fun LocketScreen(
                 partnerName = uiState.partnerUser.name,
                 onSend = { viewModel.sendLocket() },
                 onCancel = { viewModel.clearCapturedPhoto() },
-                onSaveToGallery = { /* TODO: Save to gallery */ },
+                onSaveToGallery = {
+                    // Save photo to gallery
+                    uiState.capturedPhoto?.let { bitmap ->
+                        scope.launch {
+                            try {
+                                val saved = saveBitmapToGallery(context, bitmap, "Locket_${System.currentTimeMillis()}")
+                                if (saved) {
+                                    android.widget.Toast.makeText(context, "Đã lưu ảnh vào thư viện", android.widget.Toast.LENGTH_SHORT).show()
+                                } else {
+                                    android.widget.Toast.makeText(context, "Không thể lưu ảnh", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            } catch (e: Exception) {
+                                android.widget.Toast.makeText(context, "Lỗi: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                },
                 isSending = uiState.isSending
             )
         }
@@ -322,6 +343,7 @@ fun LocketScreen(
                                             LocketTab.DRAWING -> {
                                                 LocketDrawingContent(
                                                     hasDrawing = uiState.drawingBitmap != null,
+                                                    drawingBitmap = uiState.drawingBitmap,
                                                     onOpenDrawing = onNavigateToDrawing,
                                                     onSendDrawing = { viewModel.sendLocket() },
                                                     isSending = uiState.isSending
@@ -440,6 +462,25 @@ fun LocketScreen(
                 dragHandle = null
             ) {
                 LocketSettingsBottomSheet(
+                    notificationsEnabled = uiState.settings.notificationsEnabled,
+                    autoSaveEnabled = uiState.settings.autoSaveToGallery,
+                    onNotificationsChanged = { enabled ->
+                        viewModel.updateNotificationsEnabled(enabled)
+                        // Also save to SharedPreferences for sync with notification service
+                        context.getSharedPreferences("couple_app_prefs", android.content.Context.MODE_PRIVATE)
+                            .edit()
+                            .putBoolean("locket_notifications", enabled)
+                            .apply()
+                    },
+                    onAutoSaveChanged = { enabled ->
+                        viewModel.updateAutoSaveEnabled(enabled)
+                        // Save to SharedPreferences
+                        context.getSharedPreferences("couple_app_prefs", android.content.Context.MODE_PRIVATE)
+                            .edit()
+                            .putBoolean("locket_auto_save", enabled)
+                            .apply()
+                    },
+                    onNavigateToHistory = onNavigateToHistory,
                     onDismiss = {
                         scope.launch {
                             sheetState.hide()
@@ -516,9 +557,17 @@ private fun LocketTopBar(
  */
 @Composable
 fun LocketSettingsBottomSheet(
+    notificationsEnabled: Boolean,
+    autoSaveEnabled: Boolean,
+    onNotificationsChanged: (Boolean) -> Unit,
+    onAutoSaveChanged: (Boolean) -> Unit,
+    onNavigateToHistory: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    var showFaqDialog by remember { mutableStateOf(false) }
+    
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -548,32 +597,171 @@ fun LocketSettingsBottomSheet(
         
         Spacer(modifier = Modifier.height(24.dp))
         
-        // Settings options
-        SettingsItem(
+        // Settings options with toggles
+        SettingsItemWithSwitch(
             icon = Icons.Default.Notifications,
             title = stringResource(R.string.notifications),
-            subtitle = stringResource(R.string.get_notified_subtitle)
+            subtitle = stringResource(R.string.get_notified_subtitle),
+            isChecked = notificationsEnabled,
+            onCheckedChange = onNotificationsChanged
         )
         
-        SettingsItem(
+        SettingsItemWithSwitch(
             icon = Icons.Default.Save,
             title = stringResource(R.string.auto_save),
-            subtitle = stringResource(R.string.auto_save_subtitle)
+            subtitle = stringResource(R.string.auto_save_subtitle),
+            isChecked = autoSaveEnabled,
+            onCheckedChange = onAutoSaveChanged
         )
         
         SettingsItem(
             icon = Icons.Default.History,
             title = stringResource(R.string.history),
-            subtitle = stringResource(R.string.view_sent_messages)
+            subtitle = stringResource(R.string.view_sent_messages),
+            onClick = {
+                onDismiss()
+                onNavigateToHistory()
+            }
         )
         
         SettingsItem(
             icon = Icons.Default.Info,
             title = stringResource(R.string.help_support),
-            subtitle = stringResource(R.string.how_to_use_locket)
+            subtitle = stringResource(R.string.how_to_use_locket),
+            onClick = { showFaqDialog = true }
         )
         
         Spacer(modifier = Modifier.height(16.dp))
+    }
+    
+    // FAQ Dialog
+    if (showFaqDialog) {
+        LocketFaqDialog(
+            onDismiss = { showFaqDialog = false }
+        )
+    }
+}
+
+/**
+ * FAQ Dialog for Locket help
+ */
+@Composable
+private fun LocketFaqDialog(
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(R.string.help_support),
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                FaqItem(
+                    question = stringResource(R.string.faq_send_locket_question),
+                    answer = stringResource(R.string.faq_send_locket_answer)
+                )
+                FaqItem(
+                    question = stringResource(R.string.faq_what_types_question),
+                    answer = stringResource(R.string.faq_what_types_answer)
+                )
+                FaqItem(
+                    question = stringResource(R.string.faq_history_question),
+                    answer = stringResource(R.string.faq_history_answer)
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.ok))
+            }
+        }
+    )
+}
+
+@Composable
+private fun FaqItem(
+    question: String,
+    answer: String
+) {
+    Column {
+        Text(
+            text = question,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 14.sp,
+            color = Color(0xFF2D2D2D)
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = answer,
+            fontSize = 13.sp,
+            color = Color(0xFF757575),
+            lineHeight = 18.sp
+        )
+    }
+}
+
+@Composable
+private fun SettingsItemWithSwitch(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String,
+    isChecked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(CircleShape)
+                .background(Color(0xFFF5F5F5)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = Color(0xFF4CAF50),
+                modifier = Modifier.size(22.dp)
+            )
+        }
+        
+        Spacer(modifier = Modifier.width(16.dp))
+        
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontWeight = FontWeight.SemiBold
+                ),
+                color = Color(0xFF2D2D2D)
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFF757575)
+            )
+        }
+        
+        Switch(
+            checked = isChecked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = Color(0xFF4CAF50),
+                uncheckedThumbColor = Color.White,
+                uncheckedTrackColor = Color(0xFFE0E0E0)
+            )
+        )
     }
 }
 
@@ -582,12 +770,13 @@ private fun SettingsItem(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     subtitle: String,
+    onClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clickable { /* TODO */ }
+            .clickable { onClick() }
             .padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -628,5 +817,56 @@ private fun SettingsItem(
             contentDescription = null,
             tint = Color(0xFFB0B0B0)
         )
+    }
+}
+
+/**
+ * Save bitmap to device gallery
+ */
+private fun saveBitmapToGallery(context: android.content.Context, bitmap: Bitmap, filename: String): Boolean {
+    return try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // Android 10+ - Use MediaStore
+            val contentValues = ContentValues().apply {
+                put(MediaStore.Images.Media.DISPLAY_NAME, "$filename.jpg")
+                put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/CoupleApp")
+                put(MediaStore.Images.Media.IS_PENDING, 1)
+            }
+            
+            val uri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+            uri?.let {
+                context.contentResolver.openOutputStream(it)?.use { outputStream ->
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 95, outputStream)
+                }
+                
+                // Mark as complete
+                contentValues.clear()
+                contentValues.put(MediaStore.Images.Media.IS_PENDING, 0)
+                context.contentResolver.update(it, contentValues, null, null)
+                true
+            } ?: false
+        } else {
+            // Android 9 and below - Save to external storage
+            val picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
+            val coupleAppDir = File(picturesDir, "CoupleApp")
+            if (!coupleAppDir.exists()) {
+                coupleAppDir.mkdirs()
+            }
+            
+            val file = File(coupleAppDir, "$filename.jpg")
+            FileOutputStream(file).use { outputStream ->
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 95, outputStream)
+            }
+            
+            // Notify gallery
+            val mediaScanIntent = android.content.Intent(android.content.Intent.ACTION_MEDIA_SCANNER_SCAN_FILE)
+            mediaScanIntent.data = android.net.Uri.fromFile(file)
+            context.sendBroadcast(mediaScanIntent)
+            true
+        }
+    } catch (e: Exception) {
+        android.util.Log.e("LocketScreen", "Error saving to gallery", e)
+        false
     }
 }

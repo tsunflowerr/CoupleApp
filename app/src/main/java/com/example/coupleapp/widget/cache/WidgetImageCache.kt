@@ -147,7 +147,7 @@ object WidgetImageCache {
             cleanupIfNeeded(cacheDir)
             
             FileOutputStream(cacheFile).use { fos ->
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 85, fos)
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 92, fos)
             }
             
             Log.d(TAG, "💾 Cached bitmap: ${key.take(8)}... (${cacheFile.length() / 1024}KB)")

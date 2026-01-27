@@ -148,10 +148,10 @@ data class PlantStatus(
     val lastUpdateTime: Long = System.currentTimeMillis()
 ) {
     val isAlive: Boolean
-        get() = sunlight > 0 || water > 0 || health > 0
+        get() = sunlight > 0 && water > 0 && health > 0
     
     val isDead: Boolean
-        get() = sunlight <= 0 && water <= 0 && health <= 0
+        get() = sunlight <= 0 || water <= 0 || health <= 0
     
     val needsSunlight: Boolean
         get() = sunlight < 30
@@ -164,7 +164,7 @@ data class PlantStatus(
     
     val mostNeededStatus: PlantStatusType?
         get() = when {
-            sunlight <= 0 && water <= 0 && health <= 0 -> null
+            isDead -> null // Plant is dead if any stat is 0
             sunlight <= water && sunlight <= health -> PlantStatusType.SUNLIGHT
             water <= sunlight && water <= health -> PlantStatusType.WATER
             else -> PlantStatusType.HEALTH

@@ -10,6 +10,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
@@ -24,8 +26,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -46,6 +53,24 @@ fun LocketTextContent(
     val focusManager = LocalFocusManager.current
     
     var selectedColor by remember { mutableStateOf(Color(0xFF2D2D2D)) }
+    
+    // Use TextFieldValue to properly control cursor position
+    var textFieldValue by remember(textContent) {
+        mutableStateOf(TextFieldValue(
+            text = textContent,
+            selection = TextRange(textContent.length) // Always place cursor at end
+        ))
+    }
+    
+    // Sync external textContent changes with TextFieldValue
+    LaunchedEffect(textContent) {
+        if (textFieldValue.text != textContent) {
+            textFieldValue = TextFieldValue(
+                text = textContent,
+                selection = TextRange(textContent.length)
+            )
+        }
+    }
     
     val textColors = remember {
         listOf(
@@ -84,10 +109,11 @@ fun LocketTextContent(
             contentAlignment = Alignment.Center
         ) {
             BasicTextField(
-                value = textContent,
-                onValueChange = { newText ->
-                    if (newText.length <= 200) {
-                        onTextChange(newText)
+                value = textFieldValue,
+                onValueChange = { newValue ->
+                    if (newValue.text.length <= 200) {
+                        textFieldValue = newValue
+                        onTextChange(newValue.text)
                     }
                 },
                 modifier = Modifier
@@ -101,12 +127,22 @@ fun LocketTextContent(
                     lineHeight = 32.sp
                 ),
                 cursorBrush = SolidColor(Color(0xFF4CAF50)),
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Sentences,
+                    keyboardType = KeyboardType.Text,
+                    imeAction = ImeAction.Done
+                ),
+                keyboardActions = KeyboardActions(
+                    onDone = {
+                        focusManager.clearFocus()
+                    }
+                ),
                 decorationBox = { innerTextField ->
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        if (textContent.isEmpty()) {
+                        if (textFieldValue.text.isEmpty()) {
                             Text(
                                 text = stringResource(R.string.type_message_love),
                                 color = Color(0xFFB0B0B0),
@@ -122,9 +158,9 @@ fun LocketTextContent(
             )
             
             // Character count
-            if (textContent.isNotEmpty()) {
+            if (textFieldValue.text.isNotEmpty()) {
                 Text(
-                    text = "${textContent.length}/200",
+                    text = "${textFieldValue.text.length}/200",
                     color = Color(0xFF757575),
                     fontSize = 12.sp,
                     modifier = Modifier

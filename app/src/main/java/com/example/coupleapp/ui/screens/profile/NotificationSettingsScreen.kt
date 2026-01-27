@@ -333,6 +333,10 @@ object NotificationPreferences {
             .getBoolean("push_enabled", true)
     }
     
+    fun isMessageNotificationEnabled(context: Context): Boolean {
+        return isPushEnabled(context) // Messages follow the main push setting
+    }
+    
     fun isLocketNotificationEnabled(context: Context): Boolean {
         return isPushEnabled(context) && context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .getBoolean("locket_notifications", true)

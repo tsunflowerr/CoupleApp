@@ -795,14 +795,6 @@ class DistanceViewModel(application: Application) : AndroidViewModel(application
         }
     }
     
-    fun showSettings() {
-        _uiState.update { it.copy(showSettingsDialog = true) }
-    }
-    
-    fun dismissSettings() {
-        _uiState.update { it.copy(showSettingsDialog = false) }
-    }
-    
     /**
      * Load photos for a shared place
      */

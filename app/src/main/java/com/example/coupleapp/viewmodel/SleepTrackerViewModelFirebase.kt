@@ -211,12 +211,10 @@ class SleepTrackerViewModelFirebase(
                     )
                 
                 val sleepHistory = cachedHistory?.map { sleepRepository.convertToSleepRecord(it) } ?: emptyList()
-                var sleepRecord = cachedTodayRecord?.let { sleepRepository.convertToSleepRecord(it) }
+                val sleepRecord = cachedTodayRecord?.let { sleepRepository.convertToSleepRecord(it) }
                 
-                // If no today's record, use most recent from history
-                if (sleepRecord == null && sleepHistory.isNotEmpty()) {
-                    sleepRecord = sleepHistory.first()
-                }
+                // Don't use history as today's record - show empty state instead
+                // This prevents confusing UX where yesterday's data is shown as today's
                 
                 // ========== INSTANT PROFILE LOAD FROM CACHE (No network!) ==========
                 // Try ProfileCacheRepository first for instant UI
@@ -412,11 +410,9 @@ class SleepTrackerViewModelFirebase(
                 
                 val sleepHistory = cachedHistory?.map { sleepRepository.convertToSleepRecord(it) } 
                     ?: emptyList()
-                var sleepRecord = cachedTodayRecord?.let { sleepRepository.convertToSleepRecord(it) }
+                val sleepRecord = cachedTodayRecord?.let { sleepRepository.convertToSleepRecord(it) }
                 
-                if (sleepRecord == null && sleepHistory.isNotEmpty()) {
-                    sleepRecord = sleepHistory.first()
-                }
+                // Don't use history as today's record - show empty state instead
                 
                 val isViewingPartner = !_uiState.value.isCurrentUser
                 val dataStatus = determineSleepDataStatus(sleepRecord, sleepHistory, isViewingPartner)
@@ -523,11 +519,8 @@ class SleepTrackerViewModelFirebase(
                 
                 Log.d(TAG, "loadUserData: Found ${sleepHistory.size} history records (after deduplication)")
                 
-                // If no today's record, use most recent record from history for display
-                if (sleepRecord == null && sleepHistory.isNotEmpty()) {
-                    sleepRecord = sleepHistory.first()
-                    Log.d(TAG, "loadUserData: Using most recent record from history: ${sleepRecord.id}")
-                }
+                // Don't use history as today's record - show empty state instead
+                // This prevents confusing UX where yesterday's data is shown as today's
 
                 val isViewingPartner = !_uiState.value.isCurrentUser
                 val dataStatus = determineSleepDataStatus(sleepRecord, sleepHistory, isViewingPartner)

@@ -6,6 +6,7 @@ import com.example.coupleapp.CoupleApplication
 import com.example.coupleapp.data.model.FirebaseUser
 import com.example.coupleapp.data.repository.FirebaseAuthRepository
 import com.example.coupleapp.data.repository.FirebaseFirestoreRepository
+import com.example.coupleapp.ui.screens.profile.NotificationPreferences
 import com.example.coupleapp.utils.NotificationHelper
 import com.google.firebase.database.*
 import kotlinx.coroutines.*
@@ -17,6 +18,7 @@ import kotlinx.coroutines.*
 object MessageNotificationManager {
     private const val TAG = "MsgNotificationManager"
     
+    private var appContext: Context? = null
     private var notificationHelper: NotificationHelper? = null
     private var messagesListener: ValueEventListener? = null
     private var messagesRef: DatabaseReference? = null
@@ -58,6 +60,7 @@ object MessageNotificationManager {
             return
         }
         
+        appContext = context.applicationContext
         notificationHelper = NotificationHelper(context.applicationContext)
         isInitialized = true
         Log.d(TAG, "MessageNotificationManager initialized")
@@ -168,6 +171,7 @@ object MessageNotificationManager {
     
     /**
      * Process message snapshot and show notification if needed
+     * Respects user's notification preferences
      */
     private fun processMessageSnapshot(snapshot: DataSnapshot, userId: String, partnerId: String) {
         Log.d(TAG, "📨 Message update received: ${snapshot.childrenCount} messages")
@@ -195,13 +199,21 @@ object MessageNotificationManager {
             !isRead && !lastKnownMessageIds.contains(id)
         }
         
+        // Check if message notifications are enabled in settings
+        val context = appContext
+        val isNotificationEnabled = context?.let { 
+            NotificationPreferences.isMessageNotificationEnabled(it) 
+        } ?: true
+        
         // Show notification if:
         // 1. There are new unread messages from partner
         // 2. App is in foreground (for background, FCM handles it)
         // 3. User is NOT in chat screen
+        // 4. Notifications are enabled in settings
         val shouldShowNotification = newUnreadMessages.isNotEmpty() && 
             CoupleApplication.isAppInForeground && 
-            !CoupleApplication.isUserInChatScreen
+            !CoupleApplication.isUserInChatScreen &&
+            isNotificationEnabled
         
         if (shouldShowNotification) {
             notificationHelper?.showMessageNotification(
@@ -210,6 +222,8 @@ object MessageNotificationManager {
                 messageCount = newUnreadMessages.size
             )
             Log.d(TAG, "🔔 Notification shown: ${newUnreadMessages.size} new messages")
+        } else if (!isNotificationEnabled) {
+            Log.d(TAG, "⚠️ Message notifications disabled in settings")
         }
         
         // Update known message IDs
@@ -253,6 +267,7 @@ object MessageNotificationManager {
         currentUserId = null
         partnerId = null
         partnerName = null
+        appContext = null
         lastKnownMessageIds = emptySet()
         Log.d(TAG, "MessageNotificationManager cleaned up")
     }

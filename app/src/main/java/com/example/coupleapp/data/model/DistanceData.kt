@@ -96,7 +96,6 @@ data class DistanceUiState(
     val sharedPlaces: List<SharedPlace> = emptyList(),
     val selectedUser: UserLocation? = null,
     val showUserInfoSheet: Boolean = false,
-    val showSettingsDialog: Boolean = false,
     val error: String? = null,
     // Colocation status - when both users are together
     val isColocationActive: Boolean = false,

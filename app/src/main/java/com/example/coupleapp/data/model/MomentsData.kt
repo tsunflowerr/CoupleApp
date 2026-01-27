@@ -232,7 +232,9 @@ enum class GardenEventType {
     WATERED,      // Plant watered
     EVOLVED,      // Plant evolved to next stage
     HARVESTED,    // Plant fully grown and harvested
-    WILTED        // Plant wilted due to neglect
+    WILTED,       // Plant wilted due to neglect
+    NEEDS_WATER,  // Plant needs water (below 30%)
+    NEEDS_SUN     // Plant needs sunlight (below 30%)
 }
 
 /**

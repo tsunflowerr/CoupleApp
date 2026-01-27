@@ -42,7 +42,30 @@ class LocketViewModelFirebase : ViewModel() {
 
     init {
         loadInitialData()
+        loadSettingsFromPreferences()
         observeReceivedLockets()
+    }
+    
+    /**
+     * Load Locket settings from SharedPreferences
+     */
+    private fun loadSettingsFromPreferences() {
+        try {
+            val prefs = CoupleApplication.instance.getSharedPreferences("couple_app_prefs", android.content.Context.MODE_PRIVATE)
+            val notificationsEnabled = prefs.getBoolean("locket_notifications", true)
+            val autoSaveEnabled = prefs.getBoolean("locket_auto_save", false)
+            
+            _uiState.update { currentState ->
+                currentState.copy(
+                    settings = currentState.settings.copy(
+                        notificationsEnabled = notificationsEnabled,
+                        autoSaveToGallery = autoSaveEnabled
+                    )
+                )
+            }
+        } catch (e: Exception) {
+            // Ignore if preferences cannot be loaded
+        }
     }
 
     private fun loadInitialData() {
@@ -643,6 +666,28 @@ class LocketViewModelFirebase : ViewModel() {
 
     fun showHistory(show: Boolean) {
         _uiState.update { it.copy(showHistory = show) }
+    }
+    
+    /**
+     * Update locket notification settings
+     */
+    fun updateNotificationsEnabled(enabled: Boolean) {
+        _uiState.update { currentState ->
+            currentState.copy(
+                settings = currentState.settings.copy(notificationsEnabled = enabled)
+            )
+        }
+    }
+    
+    /**
+     * Update auto-save to gallery setting
+     */
+    fun updateAutoSaveEnabled(enabled: Boolean) {
+        _uiState.update { currentState ->
+            currentState.copy(
+                settings = currentState.settings.copy(autoSaveToGallery = enabled)
+            )
+        }
     }
     
     override fun onCleared() {

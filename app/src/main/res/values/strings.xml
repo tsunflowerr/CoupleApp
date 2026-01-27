@@ -535,6 +535,11 @@
     <string name="faq_link_partner_answer">Go to Profile > Manage Link and share your link code with your partner. They can enter your code in their app to connect with you.</string>
     <string name="faq_send_locket">How do I send a Locket?</string>
     <string name="faq_send_locket_answer">Tap on the Locket feature from the home screen or profile. Choose an emoji, text, photo, or drawing to send to your partner.</string>
+    <string name="faq_send_locket_question">How do I send a Locket?</string>
+    <string name="faq_what_types_question">What types of content can I send?</string>
+    <string name="faq_what_types_answer">You can send photos, emoji, drawings, or text messages to your partner.</string>
+    <string name="faq_history_question">Where can I see my Locket history?</string>
+    <string name="faq_history_answer">Tap the History option in Settings to view all sent and received Lockets.</string>
     <string name="faq_quests">What are Quests?</string>
     <string name="faq_quests_answer">Quests are daily challenges that you and your partner can complete together to earn coins and strengthen your bond.</string>
     <string name="faq_sleep_tracking">How does Sleep Tracking work?</string>

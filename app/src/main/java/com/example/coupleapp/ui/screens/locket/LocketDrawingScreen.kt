@@ -41,7 +41,7 @@ import com.example.coupleapp.data.model.DrawingPoint
 @Composable
 fun LocketDrawingScreen(
     onBackClick: () -> Unit,
-    onSaveDrawing: (List<DrawingPath>) -> Unit,
+    onSaveDrawing: (List<DrawingPath>, Int, Int) -> Unit, // Now includes canvas size
     modifier: Modifier = Modifier
 ) {
     var paths by remember { mutableStateOf(listOf<PathData>()) }
@@ -49,6 +49,9 @@ fun LocketDrawingScreen(
     var selectedColor by remember { mutableStateOf(Color(0xFF2D2D2D)) }
     var strokeWidth by remember { mutableStateOf(8f) }
     var selectedTool by remember { mutableStateOf(DrawingTool.PEN) }
+    
+    // Track canvas size for proper scaling when saving
+    var canvasSize by remember { mutableStateOf(androidx.compose.ui.geometry.Size.Zero) }
     
     val colors = remember {
         listOf(
@@ -86,7 +89,8 @@ fun LocketDrawingScreen(
                             strokeWidth = pathData.strokeWidth
                         )
                     }
-                    onSaveDrawing(drawingPaths)
+                    // Pass canvas size along with paths for proper scaling
+                    onSaveDrawing(drawingPaths, canvasSize.width.toInt(), canvasSize.height.toInt())
                 }
             )
         },
@@ -138,6 +142,9 @@ fun LocketDrawingScreen(
                             )
                         }
                 ) {
+                    // Track canvas size for scaling when saving
+                    canvasSize = size
+                    
                     // Draw completed paths
                     paths.forEach { pathData ->
                         drawPath(pathData)
@@ -483,22 +490,41 @@ private enum class DrawingTool {
 }
 
 /**
- * Convert drawing paths to Bitmap
+ * Convert drawing paths to Bitmap with proper scaling
+ * @param drawingPaths The paths drawn by user
+ * @param canvasWidth The width of the canvas where user drew (in pixels)
+ * @param canvasHeight The height of the canvas where user drew (in pixels)
+ * @param outputSize The desired output bitmap size (square)
  */
-fun convertPathsToBitmap(drawingPaths: List<DrawingPath>, width: Int, height: Int): Bitmap {
-    val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+fun convertPathsToBitmap(
+    drawingPaths: List<DrawingPath>, 
+    canvasWidth: Int, 
+    canvasHeight: Int,
+    outputSize: Int = 800
+): Bitmap {
+    val bitmap = Bitmap.createBitmap(outputSize, outputSize, Bitmap.Config.ARGB_8888)
     val canvas = android.graphics.Canvas(bitmap)
     
     // Fill with white background
     canvas.drawColor(android.graphics.Color.WHITE)
     
-    // Draw all paths
+    // Calculate scale factors to map canvas coordinates to output bitmap
+    // We want to fit the drawing into the output while maintaining aspect ratio
+    val scaleX = outputSize.toFloat() / canvasWidth.coerceAtLeast(1)
+    val scaleY = outputSize.toFloat() / canvasHeight.coerceAtLeast(1)
+    val scale = minOf(scaleX, scaleY)
+    
+    // Calculate offset to center the drawing
+    val offsetX = (outputSize - canvasWidth * scale) / 2f
+    val offsetY = (outputSize - canvasHeight * scale) / 2f
+    
+    // Draw all paths with scaling
     drawingPaths.forEach { drawingPath ->
         if (drawingPath.points.isEmpty()) return@forEach
         
         val paint = android.graphics.Paint().apply {
             color = drawingPath.color.toInt()
-            strokeWidth = drawingPath.strokeWidth
+            strokeWidth = drawingPath.strokeWidth * scale
             style = android.graphics.Paint.Style.STROKE
             strokeCap = android.graphics.Paint.Cap.ROUND
             strokeJoin = android.graphics.Paint.Join.ROUND
@@ -507,11 +533,11 @@ fun convertPathsToBitmap(drawingPaths: List<DrawingPath>, width: Int, height: In
         
         val path = android.graphics.Path()
         val firstPoint = drawingPath.points.first()
-        path.moveTo(firstPoint.x, firstPoint.y)
+        path.moveTo(firstPoint.x * scale + offsetX, firstPoint.y * scale + offsetY)
         
         for (i in 1 until drawingPath.points.size) {
             val point = drawingPath.points[i]
-            path.lineTo(point.x, point.y)
+            path.lineTo(point.x * scale + offsetX, point.y * scale + offsetY)
         }
         
         canvas.drawPath(path, paint)

@@ -30,6 +30,7 @@ class QuestViewModelFirebase : ViewModel() {
     private val authRepository = FirebaseAuthRepository()
     private val firestoreRepository = FirebaseFirestoreRepository()
     private val questCache = QuestCacheRepository.getInstance()
+    private val storeCache = StoreCacheRepository.getInstance() // For invalidating store cache on reward claim
 
     private val _uiState = MutableStateFlow(QuestUiState())
     val uiState: StateFlow<QuestUiState> = _uiState.asStateFlow()
@@ -1013,10 +1014,20 @@ class QuestViewModelFirebase : ViewModel() {
             }
 
             // For daily login quest, update streak and apply multiplier
-            val streakResult = if (quest.type == QuestType.DAILY_LOGIN) {
+            // Streak is only updated when ALL daily quests are claimed
+            val updatedQuestsForStreakCheck = _uiState.value.quests.map {
+                if (it.id == quest.id) quest.copy(status = QuestStatus.CLAIMED) else it
+            }
+            val allQuestsClaimed = updatedQuestsForStreakCheck.all { it.status == QuestStatus.CLAIMED }
+            
+            val streakResult = if (allQuestsClaimed) {
+                // All quests claimed - update streak!
+                Log.d(TAG, "[STREAK] All quests claimed! Updating streak...")
                 updateStreakOnClaim(userId)
             } else {
-                StreakUpdateResult(_uiState.value.currentStreak, _uiState.value.longestStreak, true)
+                // Not all quests claimed yet - keep current streak
+                Log.d(TAG, "[STREAK] Not all quests claimed yet (${updatedQuestsForStreakCheck.count { it.status == QuestStatus.CLAIMED }}/${updatedQuestsForStreakCheck.size})")
+                StreakUpdateResult(_uiState.value.currentStreak, _uiState.value.longestStreak, false)
             }
             val newStreak = streakResult.newStreak
             val newLongestStreak = streakResult.newLongestStreak
@@ -1132,6 +1143,9 @@ class QuestViewModelFirebase : ViewModel() {
             updateResult.fold(
                 onSuccess = {
                     Log.d(TAG, "Wallet updated successfully, added $amount coins")
+                    // Invalidate store cache so Store screen will reload fresh data
+                    storeCache.invalidateCache(userId)
+                    Log.d(TAG, "📦 Store cache invalidated after coin update")
                     true
                 },
                 onFailure = { e ->
@@ -1175,11 +1189,25 @@ class QuestViewModelFirebase : ViewModel() {
                     return@launch
                 }
 
-            // Check if any quest is login quest to update streak
-            val hasLoginQuest = completedQuests.any { it.type == QuestType.DAILY_LOGIN }
-            val streakResult = if (hasLoginQuest) {
+            // Check if claiming all completed quests will result in all quests being claimed
+            // Streak only increases when ALL daily quests are claimed
+            val allQuests = _uiState.value.quests
+            val questsAfterClaim = allQuests.map { quest ->
+                if (quest.status == QuestStatus.COMPLETED) {
+                    quest.copy(status = QuestStatus.CLAIMED)
+                } else {
+                    quest
+                }
+            }
+            val allQuestsClaimed = questsAfterClaim.all { it.status == QuestStatus.CLAIMED }
+            
+            val streakResult = if (allQuestsClaimed) {
+                // All quests will be claimed after this - update streak!
+                Log.d(TAG, "[CLAIM ALL] All quests will be claimed! Updating streak...")
                 updateStreakOnClaim(userId)
             } else {
+                // Not all quests will be claimed - keep current streak
+                Log.d(TAG, "[CLAIM ALL] Not all quests will be claimed (${questsAfterClaim.count { it.status == QuestStatus.CLAIMED }}/${questsAfterClaim.size})")
                 StreakUpdateResult(_uiState.value.currentStreak, _uiState.value.longestStreak, false)
             }
             val newStreak = streakResult.newStreak

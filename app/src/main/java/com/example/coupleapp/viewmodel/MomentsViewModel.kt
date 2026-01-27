@@ -298,56 +298,74 @@ class MomentsViewModel : ViewModel() {
     
     /**
      * Load sleep moments from Firebase
+     * Uses client-side filtering to avoid composite index requirements
      */
     private suspend fun loadSleepMoments(currentUser: FirebaseUser, partner: FirebaseUser?): List<SleepMoment>? {
         return try {
             val sevenDaysAgo = Date(System.currentTimeMillis() - 7 * 24 * 60 * 60 * 1000)
+            val userIds = listOfNotNull(currentUser.id, partner?.id)
             
-            // Query sleep records from Firestore
+            // Query sleep records from Firestore - load all and filter client-side
+            // to avoid composite index issues with whereIn + whereGreaterThan
             val db = Firebase.firestore
-            val sleepSnapshot = db.collection("sleep_records")
-                .whereIn("userId", listOfNotNull(currentUser.id, partner?.id))
-                .whereGreaterThan("date", sevenDaysAgo)
-                .get()
-                .await()
+            val allMoments = mutableListOf<SleepMoment>()
             
-            sleepSnapshot.documents.mapNotNull { doc ->
+            for (userId in userIds) {
                 try {
-                    val userId = doc.getString("userId") ?: return@mapNotNull null
-                    val userName = if (userId == currentUser.id) currentUser.displayName else partner?.displayName ?: "Partner"
-                    val dateTimestamp = doc.getTimestamp("date") ?: return@mapNotNull null
-                    val bedTimeHour = doc.getLong("bedTimeHour")?.toInt() ?: return@mapNotNull null
-                    val bedTimeMinute = doc.getLong("bedTimeMinute")?.toInt() ?: return@mapNotNull null
-                    val wakeUpTimeHour = doc.getLong("wakeUpTimeHour")?.toInt() ?: return@mapNotNull null
-                    val wakeUpTimeMinute = doc.getLong("wakeUpTimeMinute")?.toInt() ?: return@mapNotNull null
-                    val durationMinutes = doc.getLong("sleepDurationMinutes")?.toInt() ?: return@mapNotNull null
-                    val qualityStr = doc.getString("quality") ?: "GOOD"
-                    val achievementPercentage = doc.getDouble("achievementPercentage")?.toFloat() ?: 0f
+                    val sleepSnapshot = db.collection("sleep_records")
+                        .whereEqualTo("userId", userId)
+                        .get()
+                        .await()
                     
-                    val date = LocalDateTime.ofInstant(
-                        dateTimestamp.toDate().toInstant(),
-                        java.time.ZoneId.systemDefault()
-                    )
-                    
-                    val bedTime = LocalTime.of(bedTimeHour, bedTimeMinute)
-                    val wakeUpTime = LocalTime.of(wakeUpTimeHour, wakeUpTimeMinute)
-                    
-                    SleepMoment(
-                        id = doc.id,
-                        timestamp = date,
-                        userName = userName,
-                        userAvatar = if (userId == currentUser.id) "😊" else "💕",
-                        bedTime = bedTime,
-                        wakeUpTime = wakeUpTime,
-                        sleepDuration = durationMinutes,
-                        quality = SleepQuality.valueOf(qualityStr),
-                        achievementPercentage = achievementPercentage
-                    )
+                    sleepSnapshot.documents.mapNotNull { doc ->
+                        try {
+                            val docUserId = doc.getString("userId") ?: return@mapNotNull null
+                            val userName = if (docUserId == currentUser.id) currentUser.displayName else partner?.displayName ?: "Partner"
+                            val dateTimestamp = doc.getTimestamp("date") ?: return@mapNotNull null
+                            
+                            // Client-side filter for last 7 days
+                            if (dateTimestamp.toDate().before(sevenDaysAgo)) {
+                                return@mapNotNull null
+                            }
+                            
+                            val bedTimeHour = doc.getLong("bedTimeHour")?.toInt() ?: return@mapNotNull null
+                            val bedTimeMinute = doc.getLong("bedTimeMinute")?.toInt() ?: return@mapNotNull null
+                            val wakeUpTimeHour = doc.getLong("wakeUpTimeHour")?.toInt() ?: return@mapNotNull null
+                            val wakeUpTimeMinute = doc.getLong("wakeUpTimeMinute")?.toInt() ?: return@mapNotNull null
+                            val durationMinutes = doc.getLong("sleepDurationMinutes")?.toInt() ?: return@mapNotNull null
+                            val qualityStr = doc.getString("quality") ?: "GOOD"
+                            val achievementPercentage = doc.getDouble("achievementPercentage")?.toFloat() ?: 0f
+                            
+                            val date = LocalDateTime.ofInstant(
+                                dateTimestamp.toDate().toInstant(),
+                                java.time.ZoneId.systemDefault()
+                            )
+                            
+                            val bedTime = LocalTime.of(bedTimeHour, bedTimeMinute)
+                            val wakeUpTime = LocalTime.of(wakeUpTimeHour, wakeUpTimeMinute)
+                            
+                            SleepMoment(
+                                id = doc.id,
+                                timestamp = date,
+                                userName = userName,
+                                userAvatar = if (docUserId == currentUser.id) "😊" else "💕",
+                                bedTime = bedTime,
+                                wakeUpTime = wakeUpTime,
+                                sleepDuration = durationMinutes,
+                                quality = SleepQuality.valueOf(qualityStr),
+                                achievementPercentage = achievementPercentage
+                            )
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error parsing sleep record", e)
+                            null
+                        }
+                    }.let { allMoments.addAll(it) }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error parsing sleep record", e)
-                    null
+                    Log.e(TAG, "Error loading sleep records for user $userId", e)
                 }
             }
+            
+            allMoments.takeIf { it.isNotEmpty() }
         } catch (e: Exception) {
             Log.e(TAG, "Error loading sleep moments", e)
             null
@@ -355,19 +373,19 @@ class MomentsViewModel : ViewModel() {
     }
     
     /**
-     * Load missing moments from Firebase
+     * Load missing moments from Firebase - limited to 7 days
      */
     private suspend fun loadMissingMoments(coupleId: String, currentUser: FirebaseUser, partner: FirebaseUser?): List<MissingMoment>? {
         return try {
             val db = Firebase.firestore
             
-            // Get records from last 30 days
-            val thirtyDaysAgo = LocalDate.now().minusDays(30)
+            // Get records from last 7 days only (to save DB)
+            val sevenDaysAgo = LocalDate.now().minusDays(7)
             
             val missingSnapshot = db.collection("missing_records")
                 .whereEqualTo("coupleId", coupleId)
                 .orderBy("updatedAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
-                .limit(30)
+                .limit(10)
                 .get()
                 .await()
             
@@ -382,7 +400,7 @@ class MomentsViewModel : ViewModel() {
                     
                     // Parse date
                     val date = LocalDate.parse(dateStr)
-                    if (date.isBefore(thirtyDaysAgo)) return@mapNotNull null
+                    if (date.isBefore(sevenDaysAgo)) return@mapNotNull null
                     
                     val senderName = if (userId == currentUser.id) currentUser.displayName else partner?.displayName ?: "Partner"
                     val receiverName = if (userId == currentUser.id) partner?.displayName ?: "You" else currentUser.displayName
@@ -420,21 +438,28 @@ class MomentsViewModel : ViewModel() {
     }
     
     /**
-     * Load locket moments from Firebase
+     * Load locket moments from Firebase - limited to 7 days
      */
     private suspend fun loadLocketMoments(coupleId: String, currentUser: FirebaseUser, partner: FirebaseUser?): List<LocketMoment>? {
         return try {
             val db = Firebase.firestore
-            // Use locket_posts collection (same as LocketFirebaseRepository)
+            val sevenDaysAgo = Date(System.currentTimeMillis() - 7 * 24 * 60 * 60 * 1000)
+            
+            // Use locket_posts collection - limit to 7 days
             val locketSnapshot = db.collection("locket_posts")
                 .whereEqualTo("coupleId", coupleId)
                 .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
-                .limit(20)
+                .limit(10)
                 .get()
                 .await()
             
             locketSnapshot.documents.mapNotNull { doc ->
                 try {
+                    val createdAt = doc.getTimestamp("timestamp") ?: return@mapNotNull null
+                    
+                    // Filter for 7 days only
+                    if (createdAt.toDate().before(sevenDaysAgo)) return@mapNotNull null
+                    
                     val senderId = doc.getString("senderId") ?: return@mapNotNull null
                     val typeStr = doc.getString("type") ?: "text"
                     val photoUrl = doc.getString("photoUrl")
@@ -442,7 +467,6 @@ class MomentsViewModel : ViewModel() {
                     val drawingUrl = doc.getString("drawingUrl")
                     val textContent = doc.getString("textContent")
                     val caption = doc.getString("caption")
-                    val createdAt = doc.getTimestamp("timestamp") ?: return@mapNotNull null
                     
                     val senderName = if (senderId == currentUser.id) currentUser.displayName else partner?.displayName ?: "Partner"
                     
@@ -488,7 +512,8 @@ class MomentsViewModel : ViewModel() {
     }
     
     /**
-     * Load anniversary moment
+     * Load anniversary moment - always show relationship status
+     * Also adds upcoming anniversary reminders
      */
     private suspend fun loadAnniversaryMoments(currentUser: FirebaseUser, partner: FirebaseUser?): AnniversaryMoment? {
         return try {
@@ -504,19 +529,19 @@ class MomentsViewModel : ViewModel() {
             val monthsTogether = (daysTogether / 30)
             val yearsTogether = (daysTogether / 365)
             
-            if (daysTogether % 100 == 0L || daysTogether % 365 == 0L) {
-                AnniversaryMoment(
-                    id = "anniversary_$daysTogether",
-                    timestamp = LocalDateTime.now(),
-                    daysTogether = daysTogether,
-                    monthsTogether = monthsTogether,
-                    yearsTogether = yearsTogether,
-                    user1Name = currentUser.displayName,
-                    user1Avatar = "😊",
-                    user2Name = partner?.displayName ?: "Partner",
-                    user2Avatar = "💕"
-                )
-            } else null
+            // Always return an anniversary moment to show relationship status
+            // This ensures users always see how long they've been together
+            AnniversaryMoment(
+                id = "anniversary_$daysTogether",
+                timestamp = LocalDateTime.now(),
+                daysTogether = daysTogether,
+                monthsTogether = monthsTogether,
+                yearsTogether = yearsTogether,
+                user1Name = currentUser.displayName,
+                user1Avatar = "😊",
+                user2Name = partner?.displayName ?: "Partner",
+                user2Avatar = "💕"
+            )
         } catch (e: Exception) {
             Log.e(TAG, "Error loading anniversary", e)
             null
@@ -524,11 +549,13 @@ class MomentsViewModel : ViewModel() {
     }
     
     /**
-     * Load upcoming events
+     * Load upcoming events - limited to 7 days ahead
      */
     private suspend fun loadUpcomingEvents(coupleId: String): List<EventMoment>? {
         return try {
             val db = Firebase.firestore
+            val sevenDaysFromNow = Date(System.currentTimeMillis() + 7 * 24 * 60 * 60 * 1000)
+            
             val eventsSnapshot = db.collection("calendar_events")
                 .whereEqualTo("coupleId", coupleId)
                 .whereGreaterThan("eventDate", Date())
@@ -539,9 +566,13 @@ class MomentsViewModel : ViewModel() {
             
             eventsSnapshot.documents.mapNotNull { doc ->
                 try {
+                    val eventDateMs = doc.getLong("eventDate") ?: return@mapNotNull null
+                    
+                    // Filter for 7 days only
+                    if (eventDateMs > sevenDaysFromNow.time) return@mapNotNull null
+                    
                     val title = doc.getString("title") ?: return@mapNotNull null
                     val description = doc.getString("description")
-                    val eventDateMs = doc.getLong("eventDate") ?: return@mapNotNull null
                     val typeStr = doc.getString("type") ?: "OTHER"
                     
                     val eventDate = LocalDate.ofInstant(
@@ -588,9 +619,12 @@ class MomentsViewModel : ViewModel() {
     
     /**
      * Load garden moments from Firebase (plant events)
+     * Also checks plants collection for care needs
      */
     private suspend fun loadGardenMoments(coupleId: String, currentUser: FirebaseUser, partner: FirebaseUser?): List<GardenMoment>? {
-        return try {
+        val allMoments = mutableListOf<GardenMoment>()
+        
+        try {
             val db = Firebase.firestore
             val sevenDaysAgo = Date(System.currentTimeMillis() - 7 * 24 * 60 * 60 * 1000)
             
@@ -640,26 +674,34 @@ class MomentsViewModel : ViewModel() {
                     Log.e(TAG, "Error parsing garden event", e)
                     null
                 }
+            }.let { allMoments.addAll(it) }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error loading garden events", e)
+        }
+        
+        // ALWAYS also check plants collection for care needs (water/sunlight)
+        try {
+            loadGardenMomentsFromPlants(coupleId, currentUser, partner)?.let { 
+                allMoments.addAll(it) 
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error loading garden moments", e)
-            // If collection doesn't exist or query fails, check plants collection for recent activity
-            loadGardenMomentsFromPlants(coupleId, currentUser, partner)
+            Log.e(TAG, "Error loading plant care moments", e)
         }
+        
+        return allMoments.takeIf { it.isNotEmpty() }
     }
     
     /**
      * Fallback: Load garden moments from plants collection
+     * Also checks for plants that need water or sunlight
      */
     private suspend fun loadGardenMomentsFromPlants(coupleId: String, currentUser: FirebaseUser, partner: FirebaseUser?): List<GardenMoment>? {
         return try {
             val db = Firebase.firestore
             
-            // Get plants that have been updated recently
+            // Get all plants for the couple (not just recently updated)
             val plantsSnapshot = db.collection("plants")
                 .whereEqualTo("coupleId", coupleId)
-                .orderBy("lastWateredAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
-                .limit(10)
                 .get()
                 .await()
             
@@ -667,24 +709,61 @@ class MomentsViewModel : ViewModel() {
             
             plantsSnapshot.documents.forEach { doc ->
                 try {
-                    val userId = doc.getString("userId") ?: return@forEach
+                    val plantId = doc.id
+                    val userId = doc.getString("plantedByUserId") ?: doc.getString("userId") ?: currentUser.id
                     val plantName = doc.getString("name") ?: "Plant"
                     val plantEmoji = doc.getString("emoji") ?: "🌱"
-                    val growthStage = doc.getLong("growthStage")?.toInt() ?: 0
+                    val growthProgress = doc.getDouble("growthProgress")?.toFloat() ?: 0f
                     val lastWateredAt = doc.getTimestamp("lastWateredAt")
                     val plantedAt = doc.getTimestamp("plantedAt")
                     val isHarvested = doc.getBoolean("isHarvested") ?: false
                     
-                    val userName = if (userId == currentUser.id) currentUser.displayName else partner?.displayName ?: "Partner"
+                    // Get plant status values
+                    val statusMap = doc.get("status") as? Map<*, *>
+                    val waterLevel = (statusMap?.get("water") as? Number)?.toFloat() ?: 100f
+                    val sunlightLevel = (statusMap?.get("sunlight") as? Number)?.toFloat() ?: 100f
+                    val healthLevel = (statusMap?.get("health") as? Number)?.toFloat() ?: 100f
                     
-                    // Create moment based on plant status
+                    val userName = if (userId == currentUser.id) currentUser.displayName else partner?.displayName ?: "Partner"
+                    val growthStage = (growthProgress * 100).toInt()
+                    
+                    // Priority 1: Check for plants that NEED CARE (water/sunlight below 30%)
+                    if (!isHarvested && waterLevel < 30f) {
+                        moments.add(GardenMoment(
+                            id = "${plantId}_needs_water",
+                            timestamp = LocalDateTime.now(),
+                            userName = "",
+                            userAvatar = "💧",
+                            plantName = plantName,
+                            plantEmoji = plantEmoji,
+                            eventType = GardenEventType.NEEDS_WATER,
+                            growthStage = growthStage,
+                            message = "$plantName cần được tưới nước! (${waterLevel.toInt()}%)"
+                        ))
+                    }
+                    
+                    if (!isHarvested && sunlightLevel < 30f) {
+                        moments.add(GardenMoment(
+                            id = "${plantId}_needs_sun",
+                            timestamp = LocalDateTime.now(),
+                            userName = "",
+                            userAvatar = "☀️",
+                            plantName = plantName,
+                            plantEmoji = plantEmoji,
+                            eventType = GardenEventType.NEEDS_SUN,
+                            growthStage = growthStage,
+                            message = "$plantName cần ánh sáng mặt trời! (${sunlightLevel.toInt()}%)"
+                        ))
+                    }
+                    
+                    // Priority 2: Harvested plants
                     if (isHarvested) {
                         val timestamp = lastWateredAt?.let {
                             LocalDateTime.ofInstant(it.toDate().toInstant(), java.time.ZoneId.systemDefault())
                         } ?: LocalDateTime.now()
                         
                         moments.add(GardenMoment(
-                            id = "${doc.id}_harvested",
+                            id = "${plantId}_harvested",
                             timestamp = timestamp,
                             userName = userName,
                             userAvatar = if (userId == currentUser.id) "😊" else "💕",
@@ -692,15 +771,16 @@ class MomentsViewModel : ViewModel() {
                             plantEmoji = plantEmoji,
                             eventType = GardenEventType.HARVESTED,
                             growthStage = 100,
-                            message = "$plantName has been fully grown! 🎉"
+                            message = "$plantName đã phát triển hoàn chỉnh! 🎉"
                         ))
                     } else if (growthStage >= 80) {
+                        // Priority 3: Almost fully grown plants
                         val timestamp = lastWateredAt?.let {
                             LocalDateTime.ofInstant(it.toDate().toInstant(), java.time.ZoneId.systemDefault())
                         } ?: LocalDateTime.now()
                         
                         moments.add(GardenMoment(
-                            id = "${doc.id}_evolved",
+                            id = "${plantId}_evolved",
                             timestamp = timestamp,
                             userName = userName,
                             userAvatar = if (userId == currentUser.id) "😊" else "💕",
@@ -708,7 +788,7 @@ class MomentsViewModel : ViewModel() {
                             plantEmoji = plantEmoji,
                             eventType = GardenEventType.EVOLVED,
                             growthStage = growthStage,
-                            message = "$plantName is almost fully grown! ($growthStage%)"
+                            message = "$plantName sắp phát triển hoàn chỉnh! ($growthStage%)"
                         ))
                     }
                 } catch (e: Exception) {
@@ -786,18 +866,18 @@ class MomentsViewModel : ViewModel() {
     }
     
     /**
-     * Load calendar memories - past events that happened (memories/anniversaries)
-     * Shows events from the past that are worth remembering
+     * Load calendar memories - past events from last 7 days only
      */
     private suspend fun loadCalendarMemories(coupleId: String): List<CalendarMemoryMoment>? {
         return try {
             val db = Firebase.firestore
             val today = LocalDate.now()
-            val oneYearAgo = today.minusYears(1)
+            val sevenDaysAgo = today.minusDays(7)
             
             // Get all calendar events
             val eventsSnapshot = db.collection("calendar_events")
                 .whereEqualTo("coupleId", coupleId)
+                .limit(20)
                 .get()
                 .await()
             
@@ -814,8 +894,8 @@ class MomentsViewModel : ViewModel() {
                     // Only include past events (memories)
                     if (!eventDate.isBefore(today)) return@mapNotNull null
                     
-                    // Only show events from last year (to avoid too many old memories)
-                    if (eventDate.isBefore(oneYearAgo)) return@mapNotNull null
+                    // Only show events from last 7 days
+                    if (eventDate.isBefore(sevenDaysAgo)) return@mapNotNull null
                     
                     val daysAgo = java.time.temporal.ChronoUnit.DAYS.between(eventDate, today)
                     

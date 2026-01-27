@@ -10,6 +10,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.example.coupleapp.MainActivity
 import com.example.coupleapp.R
+import com.example.coupleapp.ui.screens.profile.NotificationPreferences
 
 /**
  * Helper class for managing notifications
@@ -51,12 +52,19 @@ class NotificationHelper(private val context: Context) {
     /**
      * Show notification for new message
      * Note: For privacy, we don't show message content - only that there's a new message
+     * Respects user's notification preferences
      */
     fun showMessageNotification(
         senderName: String,
         messageText: String,
         messageCount: Int = 1
     ) {
+        // Check if notifications are enabled in settings
+        if (!NotificationPreferences.isMessageNotificationEnabled(context)) {
+            android.util.Log.d("NotificationHelper", "Message notifications disabled in settings")
+            return
+        }
+        
         // Create intent to open app when notification is tapped
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK

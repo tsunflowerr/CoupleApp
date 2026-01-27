@@ -566,19 +566,18 @@ fun DistanceInfoBubble(
 }
 
 /**
- * Top bar for distance screen with back and settings buttons
+ * Top bar for distance screen with back button
  */
 @Composable
 fun DistanceTopBar(
     onBackClick: () -> Unit,
-    onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        horizontalArrangement = Arrangement.Start,
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Back button
@@ -593,23 +592,6 @@ fun DistanceTopBar(
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = "Back",
-                tint = TextPrimary,
-                modifier = Modifier.size(22.dp)
-            )
-        }
-        
-        // Settings/Menu button
-        IconButton(
-            onClick = onSettingsClick,
-            modifier = Modifier
-                .size(44.dp)
-                .shadow(4.dp, CircleShape)
-                .clip(CircleShape)
-                .background(Color.White)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Menu,
-                contentDescription = "Settings",
                 tint = TextPrimary,
                 modifier = Modifier.size(22.dp)
             )
