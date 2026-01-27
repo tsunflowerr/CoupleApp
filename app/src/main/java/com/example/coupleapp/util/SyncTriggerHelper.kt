@@ -261,6 +261,13 @@ object SyncTriggerHelper {
             }
             
             deleted
+        } catch (e: com.google.firebase.firestore.FirebaseFirestoreException) {
+            if (e.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.FAILED_PRECONDITION) {
+                Log.w(TAG, "Firestore index not ready yet for cleanup query. This is normal on first use. Index will be built automatically.")
+            } else {
+                Log.e(TAG, "Error cleaning up old triggers", e)
+            }
+            0
         } catch (e: Exception) {
             Log.e(TAG, "Error cleaning up old triggers", e)
             0

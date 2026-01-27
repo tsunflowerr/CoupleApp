@@ -1,6 +1,10 @@
 package com.example.coupleapp.viewmodel
 
+import android.content.ContentValues
 import android.graphics.Bitmap
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.coupleapp.CoupleApplication
@@ -10,12 +14,16 @@ import com.example.coupleapp.data.repository.LocketFirebaseRepository
 import com.example.coupleapp.widget.LocketWidgetManager
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileOutputStream
 import java.time.LocalDateTime
 import java.time.ZoneId
 
@@ -354,6 +362,10 @@ class LocketViewModelFirebase : ViewModel() {
                     LocketTab.PHOTO -> {
                         val bitmap = state.capturedPhoto
                         if (bitmap != null) {
+                            // Auto-save to gallery if enabled
+                            if (state.settings.autoSaveToGallery) {
+                                savePhotoToGallery(bitmap)
+                            }
                             locketRepository.sendPhotoLocket(
                                 bitmap = bitmap,
                                 receiverId = partnerId,
@@ -687,6 +699,61 @@ class LocketViewModelFirebase : ViewModel() {
             currentState.copy(
                 settings = currentState.settings.copy(autoSaveToGallery = enabled)
             )
+        }
+    }
+    
+    /**
+     * Save photo to device gallery (phone's Photos/Gallery app)
+     */
+    private suspend fun savePhotoToGallery(bitmap: Bitmap) {
+        withContext(Dispatchers.IO) {
+            try {
+                val context = CoupleApplication.instance
+                val filename = "Locket_${System.currentTimeMillis()}"
+                
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    // Android 10+ - Use MediaStore (saves to phone gallery)
+                    val contentValues = ContentValues().apply {
+                        put(MediaStore.Images.Media.DISPLAY_NAME, "$filename.jpg")
+                        put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                        put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/CoupleApp")
+                        put(MediaStore.Images.Media.IS_PENDING, 1)
+                    }
+                    
+                    val uri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+                    uri?.let {
+                        context.contentResolver.openOutputStream(it)?.use { outputStream ->
+                            bitmap.compress(Bitmap.CompressFormat.JPEG, 95, outputStream)
+                        }
+                        
+                        // Mark as complete - now visible in gallery
+                        contentValues.clear()
+                        contentValues.put(MediaStore.Images.Media.IS_PENDING, 0)
+                        context.contentResolver.update(it, contentValues, null, null)
+                        android.util.Log.d("LocketViewModel", "Photo saved to gallery: $filename")
+                    }
+                } else {
+                    // Android 9 and below - Save to external storage
+                    val picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
+                    val coupleAppDir = File(picturesDir, "CoupleApp")
+                    if (!coupleAppDir.exists()) {
+                        coupleAppDir.mkdirs()
+                    }
+                    
+                    val file = File(coupleAppDir, "$filename.jpg")
+                    FileOutputStream(file).use { outputStream ->
+                        bitmap.compress(Bitmap.CompressFormat.JPEG, 95, outputStream)
+                    }
+                    
+                    // Notify gallery app to scan the new file
+                    val mediaScanIntent = android.content.Intent(android.content.Intent.ACTION_MEDIA_SCANNER_SCAN_FILE)
+                    mediaScanIntent.data = android.net.Uri.fromFile(file)
+                    context.sendBroadcast(mediaScanIntent)
+                    android.util.Log.d("LocketViewModel", "Photo saved to gallery (legacy): $filename")
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("LocketViewModel", "Error saving photo to gallery", e)
+            }
         }
     }
     
