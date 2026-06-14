@@ -213,6 +213,7 @@ class LocationWidgetProvider : AppWidgetProvider() {
     private fun showLocationDataCached(context: Context, views: RemoteViews, data: LocationWidgetCachedData) {
         Log.d(TAG, "=== showLocationDataCached ===")
         Log.d(TAG, "distance: ${data.distance}")
+        Log.d(TAG, "partnerLocation: '${data.partnerLocation}'")
         Log.d(TAG, "partnerLastUpdate: ${data.partnerLastUpdate}")
         
         views.setViewVisibility(R.id.location_content_container, View.VISIBLE)
@@ -223,6 +224,16 @@ class LocationWidgetProvider : AppWidgetProvider() {
         Log.d(TAG, "Setting distance to: '$distanceText'")
         views.setTextViewText(R.id.location_distance_text, distanceText)
         
+        // Partner location address
+        val locationText = formatLocationForWidget(data.partnerLocation)
+        Log.d(TAG, "Setting partner location to: '$locationText'")
+        try {
+            views.setTextViewText(R.id.location_partner_address, locationText)
+            Log.d(TAG, "✅ Partner location set successfully")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Failed to set partner location: ${e.message}", e)
+        }
+        
         // Last update time
         val lastUpdateText = formatLastUpdateCompact(data.partnerLastUpdate)
         Log.d(TAG, "Setting lastUpdate to: '$lastUpdateText'")
@@ -231,6 +242,56 @@ class LocationWidgetProvider : AppWidgetProvider() {
         // Emojis
         views.setTextViewText(R.id.location_my_emoji, "😊")
         views.setTextViewText(R.id.location_partner_emoji, "🥦")
+    }
+    
+    /**
+     * Format location string for widget display (compact)
+     */
+    private fun formatLocationForWidget(location: String): String {
+        if (location.isBlank() || location == "Không rõ" || location == "Chưa chia sẻ") {
+            return "📍 Chưa cập nhật"
+        }
+        
+        // Shorten common Vietnamese location prefixes
+        var shortened = location
+            .replace("Phường ", "P.")
+            .replace("Quận ", "Q.")
+            .replace("Huyện ", "H.")
+            .replace("Thành phố ", "")
+            .replace("TP. ", "")
+            .replace("Việt Nam", "")
+            .replace(", ,", ",")
+            .trim()
+            .trimEnd(',')
+        
+        // Try to extract just district/ward for compact display
+        val parts = shortened.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+        
+        // Get the most relevant part (usually district or ward)
+        val relevantPart = when {
+            parts.size >= 2 -> {
+                // Try to find district (Q. or Quận)
+                val district = parts.find { it.startsWith("Q.") || it.contains("Quận") }
+                val ward = parts.find { it.startsWith("P.") || it.contains("Phường") }
+                when {
+                    district != null && ward != null -> "$ward, $district"
+                    district != null -> district
+                    ward != null -> ward
+                    else -> parts.take(2).joinToString(", ")
+                }
+            }
+            parts.isNotEmpty() -> parts.first()
+            else -> shortened
+        }
+        
+        // Limit length for widget
+        val displayText = if (relevantPart.length > 25) {
+            relevantPart.take(22) + "..."
+        } else {
+            relevantPart
+        }
+        
+        return "📍 $displayText"
     }
 
     private fun shortenName(name: String): String {
@@ -394,6 +455,9 @@ class LocationWidgetProvider : AppWidgetProvider() {
         
         // Distance - main display (simplified layout)
         views.setTextViewText(R.id.location_distance_text, formatDistanceCompact(data.distance))
+        
+        // Partner location
+        views.setTextViewText(R.id.location_partner_address, formatLocationForWidget(data.partnerLocation))
         
         // Last update time
         val lastUpdateText = data.partnerLastUpdate?.let { formatLastUpdateCompact(it) } ?: ""

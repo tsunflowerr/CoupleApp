@@ -234,6 +234,21 @@ object SyncTriggerListener {
                 )
             }
             
+            // Chat message notification
+            SyncTriggerHelper.DataType.MESSAGE -> {
+                // Only show if not in chat screen
+                if (!CoupleApplication.isUserInChatScreen) {
+                    val messagePreview = extraData ?: "Bạn có tin nhắn mới"
+                    PartnerNotificationManager.showChatNotification(
+                        context = context,
+                        senderName = senderName,
+                        messagePreview = messagePreview
+                    )
+                } else {
+                    Log.d(TAG, "User is in chat screen, skip notification")
+                }
+            }
+            
             // Location and sleep updates are silent (no notification)
             SyncTriggerHelper.DataType.LOCATION,
             SyncTriggerHelper.DataType.SLEEP -> {

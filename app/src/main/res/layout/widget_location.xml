@@ -64,6 +64,21 @@
             android:textSize="16sp"
             android:textStyle="bold" />
 
+        <!-- Partner Location -->
+        <TextView
+            android:id="@+id/location_partner_address"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:maxLines="1"
+            android:text="📍 Q. Bình Thạnh"
+            android:textColor="#666666"
+            android:textSize="10sp" />
+
         <!-- Last update -->
         <TextView
             android:id="@+id/location_last_update"

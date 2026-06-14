@@ -294,7 +294,7 @@ class StoreViewModelFirebase(
                         iconRes = R.drawable.combo3,
                         type = StoreItemType.CARE_PACKAGE,
                         purchaseType = PurchaseType.COIN,
-                        coinPrice = 2000
+                        coinPrice = 800
                     )
                 )
             ),
@@ -480,8 +480,12 @@ class StoreViewModelFirebase(
                             mapOf("coins" to newCoins)
                         )
                         
-                        // Add to inventory
-                        addToInventory(currentUserId, item)
+                        // Add to inventory - handle combo packages differently
+                        if (item.type == StoreItemType.CARE_PACKAGE) {
+                            addComboPackageToInventory(currentUserId, item)
+                        } else {
+                            addToInventory(currentUserId, item)
+                        }
                         
                         // Record purchase
                         recordPurchase(currentUserId, item, "coin")
@@ -526,9 +530,8 @@ class StoreViewModelFirebase(
                             mapOf("lastFreeGiftDate" to today)
                         )
                         
-                        // Add FREE PACKAGE items to inventory:
-                        // 1 normal seed, 1 xoa (scissors), 1 sun, 1 bình xịt (pesticide)
-                        addFreePackageToInventory(currentUserId)
+                        // Add FREE PACKAGE items to inventory
+                        addComboPackageToInventory(currentUserId, item)
                         
                         // Record purchase
                         recordPurchase(currentUserId, item, "free")
@@ -559,9 +562,8 @@ class StoreViewModelFirebase(
                     }
                     
                     PurchaseType.WATCH_AD -> {
-                        // TODO: Implement ad watching
-                        // For now, just add to inventory
-                        addToInventory(currentUserId, item)
+                        // Add AD PACKAGE items to inventory
+                        addComboPackageToInventory(currentUserId, item)
                         recordPurchase(currentUserId, item, "ad")
                         
                         // Invalidate cache after ad reward
@@ -708,11 +710,16 @@ class StoreViewModelFirebase(
     }
 
     /**
-     * Add free package items to inventory
-     * Free package contains: 1 normal seed, 1 xoa (scissors), 1 sun (sunlight), 1 bình xịt (pesticide)
+     * Add combo package items to inventory
+     * Handles all 3 combo packages with their specific contents:
+     * - combo_free: 1 pesticide, 1 sunlight, 1 wateringCan, 1 normal seed
+     * - combo_ad: 1 fertilizer4h, 1 scissors, 1 wateringCan, 1 rare seed
+     * - combo_premium: 1 fertilizer8h, 1 super rare seed, 1 pesticide, 1 wateringCan
+     * 
+     * @param quantity Number of combo packages to add (default 1)
      */
-    private suspend fun addFreePackageToInventory(userId: String) {
-        Log.d(TAG, "[STORE→GARDEN] Adding FREE PACKAGE to inventory for userId=$userId")
+    private suspend fun addComboPackageToInventory(userId: String, comboItem: StoreItem, quantity: Int = 1) {
+        Log.d(TAG, "[STORE→GARDEN] Adding COMBO PACKAGE '${comboItem.id}' x$quantity to inventory for userId=$userId")
         try {
             val result = firestoreRepository.getDocument(
                 "garden_inventories",
@@ -724,27 +731,72 @@ class StoreViewModelFirebase(
                 onSuccess = { inventoryDoc ->
                     val updates = mutableMapOf<String, Any>()
                     
-                    // Add 1 normal seed
-                    val currentSeeds = inventoryDoc?.seeds ?: 0
-                    updates["seeds"] = currentSeeds + 1
-                    Log.d(TAG, "[STORE→GARDEN] Free Package - Seeds: $currentSeeds → ${currentSeeds + 1}")
+                    // Define what each combo contains (multiplied by quantity)
+                    when (comboItem.id) {
+                        "combo_free" -> {
+                            // Free Package (mỗi 3 ngày): 1 bình xịt cỏ, 1 sun, 1 bình nước, 1 hạt thường
+                            val currentPesticide = inventoryDoc?.pesticide ?: 0
+                            updates["pesticide"] = currentPesticide + (1 * quantity)
+                            Log.d(TAG, "[STORE→GARDEN] Free - Pesticide: $currentPesticide → ${currentPesticide + quantity}")
+                            
+                            val currentSunlight = inventoryDoc?.sunlightBottle ?: 0
+                            updates["sunlightBottle"] = currentSunlight + (1 * quantity)
+                            Log.d(TAG, "[STORE→GARDEN] Free - Sunlight: $currentSunlight → ${currentSunlight + quantity}")
+                            
+                            val currentWater = inventoryDoc?.wateringCan ?: 0
+                            updates["wateringCan"] = currentWater + (1 * quantity)
+                            Log.d(TAG, "[STORE→GARDEN] Free - WateringCan: $currentWater → ${currentWater + quantity}")
+                            
+                            val currentSeeds = inventoryDoc?.seeds ?: 0
+                            updates["seeds"] = currentSeeds + (1 * quantity)
+                            Log.d(TAG, "[STORE→GARDEN] Free - Normal Seeds: $currentSeeds → ${currentSeeds + quantity}")
+                        }
+                        
+                        "combo_ad" -> {
+                            // Ad Package: 1 phân 4h, 1 kéo cắt, 1 bình nước, 1 hạt hiếm
+                            val currentFert4h = inventoryDoc?.fertilizer4h ?: 0
+                            updates["fertilizer4h"] = currentFert4h + (1 * quantity)
+                            Log.d(TAG, "[STORE→GARDEN] Ad - Fertilizer4h: $currentFert4h → ${currentFert4h + quantity}")
+                            
+                            val currentScissors = inventoryDoc?.scissors ?: 0
+                            updates["scissors"] = currentScissors + (1 * quantity)
+                            Log.d(TAG, "[STORE→GARDEN] Ad - Scissors: $currentScissors → ${currentScissors + quantity}")
+                            
+                            val currentWater = inventoryDoc?.wateringCan ?: 0
+                            updates["wateringCan"] = currentWater + (1 * quantity)
+                            Log.d(TAG, "[STORE→GARDEN] Ad - WateringCan: $currentWater → ${currentWater + quantity}")
+                            
+                            val currentRareSeeds = inventoryDoc?.rareSeeds ?: 0
+                            updates["rareSeeds"] = currentRareSeeds + (1 * quantity)
+                            Log.d(TAG, "[STORE→GARDEN] Ad - Rare Seeds: $currentRareSeeds → ${currentRareSeeds + quantity}")
+                        }
+                        
+                        "combo_premium" -> {
+                            // Premium Package (800 coins): 1 phân 8h, 1 hạt siêu hiếm, 1 thuốc xịt, 1 bình nước
+                            val currentFert8h = inventoryDoc?.fertilizer8h ?: 0
+                            updates["fertilizer8h"] = currentFert8h + (1 * quantity)
+                            Log.d(TAG, "[STORE→GARDEN] Premium - Fertilizer8h: $currentFert8h → ${currentFert8h + quantity}")
+                            
+                            val currentSuperRareSeeds = inventoryDoc?.superRareSeeds ?: 0
+                            updates["superRareSeeds"] = currentSuperRareSeeds + (1 * quantity)
+                            Log.d(TAG, "[STORE→GARDEN] Premium - Super Rare Seeds: $currentSuperRareSeeds → ${currentSuperRareSeeds + quantity}")
+                            
+                            val currentPesticide = inventoryDoc?.pesticide ?: 0
+                            updates["pesticide"] = currentPesticide + (1 * quantity)
+                            Log.d(TAG, "[STORE→GARDEN] Premium - Pesticide: $currentPesticide → ${currentPesticide + quantity}")
+                            
+                            val currentWater = inventoryDoc?.wateringCan ?: 0
+                            updates["wateringCan"] = currentWater + (1 * quantity)
+                            Log.d(TAG, "[STORE→GARDEN] Premium - WateringCan: $currentWater → ${currentWater + quantity}")
+                        }
+                        
+                        else -> {
+                            Log.w(TAG, "[STORE→GARDEN] Unknown combo package: ${comboItem.id}")
+                            return@fold
+                        }
+                    }
                     
-                    // Add 1 xoa (scissors)
-                    val currentScissors = inventoryDoc?.scissors ?: 0
-                    updates["scissors"] = currentScissors + 1
-                    Log.d(TAG, "[STORE→GARDEN] Free Package - Scissors: $currentScissors → ${currentScissors + 1}")
-                    
-                    // Add 1 sun (sunlight)
-                    val currentSunlight = inventoryDoc?.sunlightBottle ?: 0
-                    updates["sunlightBottle"] = currentSunlight + 1
-                    Log.d(TAG, "[STORE→GARDEN] Free Package - Sunlight: $currentSunlight → ${currentSunlight + 1}")
-                    
-                    // Add 1 bình xịt (pesticide)
-                    val currentPesticide = inventoryDoc?.pesticide ?: 0
-                    updates["pesticide"] = currentPesticide + 1
-                    Log.d(TAG, "[STORE→GARDEN] Free Package - Pesticide: $currentPesticide → ${currentPesticide + 1}")
-                    
-                    Log.d(TAG, "[STORE→GARDEN] Free Package - Applying updates to Firebase: $updates")
+                    Log.d(TAG, "[STORE→GARDEN] Combo '${comboItem.id}' x$quantity - Applying updates to Firebase: $updates")
                     if (inventoryDoc == null) {
                         // Create new inventory
                         Log.d(TAG, "[STORE→GARDEN] Creating new inventory document for user $userId")
@@ -760,14 +812,14 @@ class StoreViewModelFirebase(
                         userId,
                         updates
                     )
-                    Log.d(TAG, "[STORE→GARDEN] ✓ Free Package added to inventory successfully")
+                    Log.d(TAG, "[STORE→GARDEN] ✓ Combo Package '${comboItem.id}' x$quantity added to inventory successfully")
                 },
                 onFailure = { e ->
-                    Log.e(TAG, "Error loading inventory for free package", e)
+                    Log.e(TAG, "Error loading inventory for combo package", e)
                 }
             )
         } catch (e: Exception) {
-            Log.e(TAG, "Error adding free package to inventory", e)
+            Log.e(TAG, "Error adding combo package to inventory", e)
         }
     }
 
@@ -880,8 +932,14 @@ class StoreViewModelFirebase(
                     mapOf("coins" to newCoins)
                 )
                 
-                // Add to inventory (with quantity)
-                addToInventory(currentUserId, item, quantity)
+                // Add to inventory - handle combo packages differently
+                if (item.type == StoreItemType.CARE_PACKAGE) {
+                    // For combo packages, add the package contents with quantity
+                    addComboPackageToInventory(currentUserId, item, quantity)
+                } else {
+                    // For regular items, add with quantity
+                    addToInventory(currentUserId, item, quantity)
+                }
                 
                 // Record purchase
                 recordPurchase(currentUserId, item, "coin", quantity)

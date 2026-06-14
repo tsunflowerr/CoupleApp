@@ -117,7 +117,7 @@ class WidgetBroadcastReceiver : BroadcastReceiver() {
                 
                 // ========== CRITICAL: Re-register Google Sleep API ==========
                 // PendingIntents are cleared on reboot, must re-register!
-                val prefs = context.getSharedPreferences("sleep_preferences", Context.MODE_PRIVATE)
+                val prefs = context.getSharedPreferences("sleep_prefs", Context.MODE_PRIVATE)
                 val googleSleepApiEnabled = prefs.getBoolean("google_sleep_api_enabled", false)
                 
                 if (googleSleepApiEnabled) {

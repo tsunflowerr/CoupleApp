@@ -334,6 +334,9 @@ class SleepFirebaseRepository(
     
     /**
      * Convert Firebase models to app models
+     * 
+     * IMPORTANT: Validates and recalculates duration if there's inconsistency
+     * between stored duration and bed/wake times.
      */
     fun convertToSleepRecord(firebaseRecord: FirebaseSleepRecord): SleepRecord {
         val date = firebaseRecord.date?.toDate()?.toInstant()
@@ -341,16 +344,45 @@ class SleepFirebaseRepository(
             ?.toLocalDateTime()
             ?: LocalDateTime.now()
         
+        // Calculate expected duration from bed/wake times
+        val calculatedDuration = calculateDurationFromTimes(
+            firebaseRecord.bedTimeHour, firebaseRecord.bedTimeMinute,
+            firebaseRecord.wakeUpTimeHour, firebaseRecord.wakeUpTimeMinute
+        )
+        
+        // Use stored duration unless there's a significant mismatch (>30 min difference)
+        // If mismatch, prefer calculated duration as it's more reliable
+        val storedDuration = firebaseRecord.actualSleepDurationMinutes
+        val actualDuration = if (kotlin.math.abs(storedDuration - calculatedDuration) > 30) {
+            Log.w(TAG, "convertToSleepRecord: Duration mismatch detected! " +
+                "Stored=${storedDuration}min, Calculated=${calculatedDuration}min. " +
+                "Using calculated value for display.")
+            calculatedDuration
+        } else {
+            storedDuration
+        }
+        
+        // Same check for sleepDurationMinutes
+        val storedSleepDuration = firebaseRecord.sleepDurationMinutes
+        val sleepDuration = if (kotlin.math.abs(storedSleepDuration - calculatedDuration) > 30 && storedSleepDuration > 0) {
+            calculatedDuration - firebaseRecord.awakeDurationMinutes
+        } else if (storedSleepDuration == 0) {
+            // If sleepDurationMinutes not set, calculate from actual duration
+            actualDuration - firebaseRecord.awakeDurationMinutes
+        } else {
+            storedSleepDuration
+        }
+        
         return SleepRecord(
             id = firebaseRecord.id,
             date = date,
             bedTime = LocalTime.of(firebaseRecord.bedTimeHour, firebaseRecord.bedTimeMinute),
             wakeUpTime = LocalTime.of(firebaseRecord.wakeUpTimeHour, firebaseRecord.wakeUpTimeMinute),
-            actualSleepDuration = firebaseRecord.actualSleepDurationMinutes,
+            actualSleepDuration = actualDuration,
             targetSleepDuration = firebaseRecord.targetSleepDurationMinutes,
             sleepStages = SleepStage(
                 awakeDurationMinutes = firebaseRecord.awakeDurationMinutes,
-                sleepDurationMinutes = firebaseRecord.sleepDurationMinutes
+                sleepDurationMinutes = sleepDuration.coerceAtLeast(0)
             ),
             quality = when (firebaseRecord.quality) {
                 "EXCELLENT" -> SleepQuality.EXCELLENT
@@ -897,6 +929,41 @@ class SleepFirebaseRepository(
         }
     }
     
+    /**
+     * Calculate sleep duration from bed time to wake time in minutes.
+     * Handles overnight sleep (e.g., 23:00 to 6:00).
+     * 
+     * @return Duration in minutes
+     */
+    private fun calculateDurationFromTimes(
+        bedHour: Int, bedMinute: Int,
+        wakeHour: Int, wakeMinute: Int
+    ): Int {
+        val bedTimeMinutes = bedHour * 60 + bedMinute
+        var wakeTimeMinutes = wakeHour * 60 + wakeMinute
+        
+        // Handle overnight sleep (e.g., 23:00 -> 6:00)
+        // If wake time is "before" bed time, add 24 hours
+        if (wakeTimeMinutes <= bedTimeMinutes) {
+            wakeTimeMinutes += 24 * 60 // Add 24 hours
+        }
+        
+        val duration = wakeTimeMinutes - bedTimeMinutes
+        
+        // Sanity check: sleep should be between 30 min and 16 hours
+        return when {
+            duration < 30 -> {
+                Log.w(TAG, "calculateDurationFromTimes: Suspiciously short sleep ($duration min)")
+                duration
+            }
+            duration > 16 * 60 -> {
+                Log.w(TAG, "calculateDurationFromTimes: Suspiciously long sleep ($duration min), capping at 16h")
+                16 * 60
+            }
+            else -> duration
+        }
+    }
+    
     // ========== Google Sleep API Integration ==========
     
     /**
@@ -906,6 +973,9 @@ class SleepFirebaseRepository(
      *   - "GOOGLE_API": Official SleepSegmentEvent from Google (delivered after waking, may have delay)
      *   - "GOOGLE_API_PARTIAL": SleepSegmentEvent with STATUS_MISSING_DATA
      *   - "GOOGLE_API_CLASSIFY": Calculated from SleepClassifyEvents (more accurate timing, real-time)
+     * 
+     * IMPORTANT: sleepDurationMinutes is now calculated from bedTime to wakeUpTime,
+     * NOT from Google's durationMillis (which can be inaccurate or represent something else)
      */
     suspend fun saveSleepSegmentFromGoogleApi(
         userId: String,
@@ -917,15 +987,28 @@ class SleepFirebaseRepository(
         return try {
             val startInstant = Instant.ofEpochMilli(startTimeMillis)
             val endInstant = Instant.ofEpochMilli(endTimeMillis)
-            val durationMinutes = (durationMillis / 1000 / 60).toInt()
             
             val startDateTime = LocalDateTime.ofInstant(startInstant, ZoneId.systemDefault())
             val endDateTime = LocalDateTime.ofInstant(endInstant, ZoneId.systemDefault())
             
+            // CRITICAL FIX: Calculate duration from actual times, not from Google's durationMillis
+            // Google's durationMillis can be inaccurate in some edge cases
+            val calculatedDurationMs = endTimeMillis - startTimeMillis
+            val durationMinutes = (calculatedDurationMs / 1000 / 60).toInt()
+            
+            // Log if there's a significant difference between Google's duration and calculated
+            val googleDurationMinutes = (durationMillis / 1000 / 60).toInt()
+            if (kotlin.math.abs(durationMinutes - googleDurationMinutes) > 30) {
+                Log.w(TAG, "saveSleepSegmentFromGoogleApi: Duration mismatch! " +
+                    "Calculated=${durationMinutes}min, Google=${googleDurationMinutes}min. " +
+                    "Using calculated value.")
+            }
+            
             Log.d(TAG, "saveSleepSegmentFromGoogleApi: Processing sleep data")
             Log.d(TAG, "  Start: $startDateTime")
             Log.d(TAG, "  End: $endDateTime")
-            Log.d(TAG, "  Duration: $durationMinutes minutes")
+            Log.d(TAG, "  Duration (calculated): $durationMinutes minutes")
+            Log.d(TAG, "  Duration (Google API): $googleDurationMinutes minutes")
             Log.d(TAG, "  Method: $trackingMethod")
             
             // Get settings
@@ -968,11 +1051,12 @@ class SleepFirebaseRepository(
             
             if (existingRecord != null) {
                 // Define tracking method priority (higher = more reliable)
-                // Priority: MANUAL > GOOGLE_API_CLASSIFY > GOOGLE_API > GOOGLE_API_PARTIAL
+                // Priority: MANUAL > GOOGLE_API_CLASSIFY > GOOGLE_API > GOOGLE_API_FORCE_SYNC > GOOGLE_API_PARTIAL
                 val methodPriority = mapOf(
                     "MANUAL" to 100,
                     "GOOGLE_API_CLASSIFY" to 80,
                     "GOOGLE_API" to 60,
+                    "GOOGLE_API_FORCE_SYNC" to 50, // NEW: Force sync is less reliable than real-time
                     "GOOGLE_API_PARTIAL" to 40
                 )
                 
@@ -1040,8 +1124,18 @@ class SleepFirebaseRepository(
                             latestWakeMinute = existingRecord.wakeUpTimeMinute
                         }
                         
-                        // Total sleep = sum of both durations (not the time span, to account for awake time between)
-                        val mergedDuration = existingRecord.actualSleepDurationMinutes + durationMinutes
+                        // CRITICAL FIX: Calculate merged duration from times, not sum of durations
+                        // Old logic: sum both durations (caused 18h sleep bug)
+                        // New logic: Calculate from earliest bed to latest wake, accounting for overnight
+                        val mergedDuration = calculateDurationFromTimes(
+                            earliestBedHour, earliestBedMinute,
+                            latestWakeHour, latestWakeMinute
+                        )
+                        
+                        Log.d(TAG, "saveSleepSegmentFromGoogleApi: Merge calculation - " +
+                            "bed=${earliestBedHour}:${earliestBedMinute}, " +
+                            "wake=${latestWakeHour}:${latestWakeMinute}, " +
+                            "duration=${mergedDuration}min")
                         
                         // Recalculate quality with merged duration
                         val (mergedQuality, mergedAchievement) = calculateSleepQuality(mergedDuration, targetDuration)

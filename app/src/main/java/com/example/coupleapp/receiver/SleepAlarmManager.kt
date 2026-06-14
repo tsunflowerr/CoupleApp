@@ -8,6 +8,8 @@ import android.content.Intent
 import android.os.Build
 import android.util.Log
 import com.example.coupleapp.data.sleep.GoogleSleepApiManager
+import com.example.coupleapp.worker.DailySleepResetWorker
+import com.example.coupleapp.worker.ForceSleepSyncWorker
 import com.example.coupleapp.worker.GoogleSleepSyncWorker
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.CoroutineScope
@@ -76,6 +78,12 @@ class SleepAlarmReceiver : BroadcastReceiver() {
         
         scope.launch {
             try {
+                // Step 0: Check if we need to reset stale flags (new day)
+                if (DailySleepResetWorker.needsReset(context)) {
+                    Log.d(TAG, "New day detected, triggering reset")
+                    DailySleepResetWorker.triggerImmediateReset(context)
+                }
+                
                 // Step 1: Ensure Google Sleep API is registered (recovery from clear RAM)
                 ensureSleepApiRegistered(context)
                 
@@ -84,6 +92,9 @@ class SleepAlarmReceiver : BroadcastReceiver() {
                 
                 // Step 3: Re-schedule next alarm
                 SleepAlarmManager.scheduleNextMorningAlarm(context)
+                
+                // Step 4: Ensure force sync is scheduled (Layer 4)
+                ForceSleepSyncWorker.scheduleForceSync(context)
                 
                 Log.d(TAG, "✅ Sleep alarm handled successfully")
             } catch (e: Exception) {
@@ -100,27 +111,19 @@ class SleepAlarmReceiver : BroadcastReceiver() {
         try {
             val googleSleepManager = GoogleSleepApiManager(context)
             
-            // Check if Google Sleep API is enabled in settings
-            val prefs = context.getSharedPreferences("sleep_settings", Context.MODE_PRIVATE)
-            val isEnabled = prefs.getBoolean("google_sleep_api_enabled", false)
-            
-            if (!isEnabled) {
-                Log.d(TAG, "Google Sleep API not enabled in settings")
-                return
-            }
-            
-            // Check permission
+            // Check permission first
             if (!googleSleepManager.hasActivityRecognitionPermission()) {
                 Log.w(TAG, "Activity Recognition permission not granted")
                 return
             }
             
-            // Re-register if not registered
-            if (!googleSleepManager.isSleepTrackingRegistered()) {
-                Log.d(TAG, "Re-registering Google Sleep API (Layer 1 recovery)")
-                googleSleepManager.registerSleepUpdates()
+            // Use new ensureRegistered method with autoEnable=true
+            val registered = googleSleepManager.ensureRegistered(autoEnable = true)
+            
+            if (registered) {
+                Log.d(TAG, "✅ Google Sleep API registered")
             } else {
-                Log.d(TAG, "Google Sleep API already registered")
+                Log.d(TAG, "⚠️ Google Sleep API not registered (disabled by user)")
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error ensuring Sleep API registered", e)
@@ -171,22 +174,31 @@ object SleepAlarmManager {
     
     /**
      * Schedule next available morning alarm
+     * CRITICAL FIX: After an alarm triggers, we need to schedule it again for tomorrow
+     * This ensures continuous daily operation, not just 1 day
      */
     fun scheduleNextMorningAlarm(context: Context) {
         val currentHour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
         
-        // Find next alarm that hasn't passed yet
-        val nextAlarm = MORNING_ALARMS.firstOrNull { (hour, _) -> hour > currentHour }
+        // Find which alarm just triggered (approximate by current hour)
+        val triggeredAlarm = MORNING_ALARMS.firstOrNull { (hour, _) -> 
+            kotlin.math.abs(hour - currentHour) <= 1 // Within 1 hour of alarm time
+        }
         
-        if (nextAlarm != null) {
-            // Schedule for today
-            scheduleAlarmAtHour(context, nextAlarm.first, nextAlarm.second)
-            Log.d(TAG, "Scheduled next morning alarm at ${nextAlarm.first}:00 AM (today)")
-        } else {
-            // All alarms passed, schedule first one for tomorrow
-            val (hour, requestCode) = MORNING_ALARMS.first()
-            scheduleAlarmAtHour(context, hour, requestCode, tomorrow = true)
-            Log.d(TAG, "Scheduled next morning alarm at $hour:00 AM (tomorrow)")
+        if (triggeredAlarm != null) {
+            // This alarm just triggered - schedule it for tomorrow
+            scheduleAlarmAtHour(context, triggeredAlarm.first, triggeredAlarm.second, tomorrow = true)
+            Log.d(TAG, "Re-scheduled triggered alarm ${triggeredAlarm.first}:00 AM for tomorrow")
+        }
+        
+        // Also ensure all other alarms are scheduled
+        // This handles cases where alarms were cleared (RAM clear, reboot, etc.)
+        MORNING_ALARMS.forEach { (hour, requestCode) ->
+            if (!isAlarmScheduled(context, requestCode)) {
+                val tomorrow = hour <= currentHour
+                scheduleAlarmAtHour(context, hour, requestCode, tomorrow)
+                Log.d(TAG, "Re-scheduled missing alarm ${hour}:00 AM")
+            }
         }
     }
     

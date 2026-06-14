@@ -127,20 +127,36 @@ class SleepReceiver : BroadcastReceiver() {
     /**
      * Check and reset stale sleep state
      * Handles cases like: phone was off, new day started, etc.
+     * 
+     * ENHANCED: Better handling of new day detection to ensure daily syncs work
      */
     private fun checkAndResetStaleState(context: Context) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val isSleeping = prefs.getBoolean(KEY_IS_SLEEPING, false)
         val lastEventTime = prefs.getLong(KEY_LAST_EVENT_TIME, 0L)
         val sleepDate = prefs.getString(KEY_SLEEP_DATE, "") ?: ""
+        val alreadySynced = prefs.getBoolean(KEY_ALREADY_SYNCED_TODAY, false)
         
         val now = System.currentTimeMillis()
         val todayDate = SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(Date())
         
-        // Reset if it's a new day (after 12:00 PM - assume previous night's sleep is done)
         val calendar = Calendar.getInstance()
         val currentHour = calendar.get(Calendar.HOUR_OF_DAY)
         
+        // CRITICAL FIX: Reset alreadySynced flag if it's from a previous day
+        // This ensures we can sync data for the new day
+        if (alreadySynced && sleepDate.isNotEmpty() && sleepDate != todayDate) {
+            // If it's after 4 AM, the synced flag from yesterday should be reset
+            if (currentHour >= 4) {
+                Log.d(TAG, "⚠️ Stale alreadySynced flag detected (from $sleepDate), resetting for new day")
+                prefs.edit()
+                    .putBoolean(KEY_ALREADY_SYNCED_TODAY, false)
+                    .putString(KEY_SLEEP_DATE, "")
+                    .apply()
+            }
+        }
+        
+        // Reset if it's a new day (after 12:00 PM - assume previous night's sleep is done)
         if (sleepDate.isNotEmpty() && sleepDate != todayDate && currentHour >= 12) {
             Log.d(TAG, "New day detected (after noon), resetting sleep state")
             resetSleepStateInternal(prefs)

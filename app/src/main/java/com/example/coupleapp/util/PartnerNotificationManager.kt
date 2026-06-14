@@ -48,22 +48,26 @@ object PartnerNotificationManager {
     const val CHANNEL_ID_MISSING = "channel_missing"
     const val CHANNEL_ID_LOCKET = "channel_locket"
     const val CHANNEL_ID_QUESTION = "channel_question"
+    const val CHANNEL_ID_CHAT = "channel_chat"
     const val CHANNEL_ID_GENERAL = "channel_general"
     
     // Notification IDs (unique for each type to avoid overwriting)
     private const val NOTIFICATION_ID_MISSING_BASE = 3000
     private const val NOTIFICATION_ID_LOCKET_BASE = 4000
     private const val NOTIFICATION_ID_QUESTION_BASE = 5000
+    private const val NOTIFICATION_ID_CHAT_BASE = 6000
     
     // Group keys for notification grouping
     private const val GROUP_KEY_MISSING = "group_missing"
     private const val GROUP_KEY_LOCKET = "group_locket"
     private const val GROUP_KEY_QUESTION = "group_question"
+    private const val GROUP_KEY_CHAT = "group_chat"
     
     // Deep link actions
     const val ACTION_OPEN_MISSING = "com.example.coupleapp.OPEN_MISSING"
     const val ACTION_OPEN_LOCKET = "com.example.coupleapp.OPEN_LOCKET"
     const val ACTION_OPEN_QUESTION = "com.example.coupleapp.OPEN_QUESTION"
+    const val ACTION_OPEN_CHAT = "com.example.coupleapp.OPEN_CHAT"
     
     /**
      * Initialize notification channels.
@@ -116,6 +120,26 @@ object PartnerNotificationManager {
                 enableVibration(true)
             }
             
+            // Chat Channel - High importance for messages
+            val chatChannel = NotificationChannel(
+                CHANNEL_ID_CHAT,
+                "Tin nhắn 💬",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Thông báo khi người yêu gửi tin nhắn"
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0, 200, 100, 200)
+                enableLights(true)
+                lightColor = 0xFF4CAF50.toInt() // Green
+                setSound(
+                    RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION),
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build()
+                )
+            }
+            
             // General Channel
             val generalChannel = NotificationChannel(
                 CHANNEL_ID_GENERAL,
@@ -126,7 +150,7 @@ object PartnerNotificationManager {
             }
             
             notificationManager.createNotificationChannels(
-                listOf(missingChannel, locketChannel, questionChannel, generalChannel)
+                listOf(missingChannel, locketChannel, questionChannel, chatChannel, generalChannel)
             )
             
             Log.d(TAG, "Notification channels created")
@@ -367,6 +391,71 @@ object PartnerNotificationManager {
     }
     
     /**
+     * Show notification when partner sends a chat message
+     */
+    fun showChatNotification(
+        context: Context,
+        senderName: String,
+        messagePreview: String,
+        senderAvatarUrl: String? = null
+    ) {
+        if (!hasNotificationPermission(context)) {
+            Log.w(TAG, "No notification permission")
+            return
+        }
+        
+        val notificationId = NOTIFICATION_ID_CHAT_BASE + (System.currentTimeMillis() % 1000).toInt()
+        
+        // Create intent to open Chat screen
+        val intent = Intent(context, MainActivity::class.java).apply {
+            action = ACTION_OPEN_CHAT
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("navigate_to", "chat")
+            putExtra("open_chat", true)
+        }
+        
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            notificationId,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        
+        val title = senderName
+        val displayMessage = if (messagePreview.length > 100) {
+            messagePreview.take(97) + "..."
+        } else {
+            messagePreview
+        }
+        
+        val builder = NotificationCompat.Builder(context, CHANNEL_ID_CHAT)
+            .setSmallIcon(R.drawable.ic_message_notification)
+            .setContentTitle(title)
+            .setContentText(displayMessage)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(displayMessage))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setGroup(GROUP_KEY_CHAT)
+            .setVibrate(longArrayOf(0, 200, 100, 200))
+            .setColor(0xFF4CAF50.toInt()) // Green
+            .setDefaults(NotificationCompat.DEFAULT_SOUND)
+        
+        // Add large icon (use message icon as default)
+        builder.setLargeIcon(
+            BitmapFactory.decodeResource(context.resources, R.drawable.ic_message_large)
+        )
+        
+        try {
+            NotificationManagerCompat.from(context).notify(notificationId, builder.build())
+            Log.d(TAG, "Chat notification shown: $title - $displayMessage")
+        } catch (e: SecurityException) {
+            Log.e(TAG, "Failed to show notification: no permission", e)
+        }
+    }
+    
+    /**
      * Cancel all notifications of a specific type
      */
     fun cancelNotifications(context: Context, type: String) {
@@ -386,6 +475,11 @@ object PartnerNotificationManager {
             "question" -> {
                 for (i in 0..999) {
                     notificationManager.cancel(NOTIFICATION_ID_QUESTION_BASE + i)
+                }
+            }
+            "chat" -> {
+                for (i in 0..999) {
+                    notificationManager.cancel(NOTIFICATION_ID_CHAT_BASE + i)
                 }
             }
             "all" -> {

@@ -7,6 +7,8 @@ import android.util.Log
 import com.example.coupleapp.data.sleep.GoogleSleepApiManager
 import com.example.coupleapp.service.SignificantLocationManager
 import com.example.coupleapp.worker.BackgroundLocationWorker
+import com.example.coupleapp.worker.DailySleepResetWorker
+import com.example.coupleapp.worker.ForceSleepSyncWorker
 import com.example.coupleapp.worker.GoogleSleepSyncWorker
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.CoroutineScope
@@ -94,6 +96,8 @@ class LocationRestartReceiver : BroadcastReceiver() {
     /**
      * Restart Google Sleep API tracking after boot.
      * This ensures sleep tracking continues even after device restart.
+     * 
+     * ENHANCED: Now schedules all sleep-related workers for complete coverage
      */
     private fun restartSleepTracking(context: Context) {
         val currentUser = FirebaseAuth.getInstance().currentUser
@@ -106,20 +110,21 @@ class LocationRestartReceiver : BroadcastReceiver() {
         
         scope.launch {
             try {
-                // Re-register Google Sleep API
+                // CRITICAL FIX: Schedule daily reset worker FIRST
+                // This ensures the alreadySynced flag resets properly each day
+                DailySleepResetWorker.scheduleDailyReset(context)
+                Log.d(TAG, "✅ Daily sleep reset worker scheduled")
+                
+                // Re-register Google Sleep API (Layer 1)
                 val googleSleepApiManager = GoogleSleepApiManager(context)
                 
                 if (googleSleepApiManager.hasActivityRecognitionPermission()) {
-                    val prefs = context.getSharedPreferences("sleep_prefs", Context.MODE_PRIVATE)
-                    val wasEnabled = prefs.getBoolean("google_sleep_api_enabled", false)
-                    
-                    if (wasEnabled || googleSleepApiManager.isSleepTrackingRegistered()) {
-                        val result = googleSleepApiManager.registerSleepUpdates()
-                        if (result.isSuccess) {
-                            Log.d(TAG, "✅ Google Sleep API re-registered successfully")
-                        } else {
-                            Log.w(TAG, "Failed to re-register Google Sleep API: ${result.exceptionOrNull()?.message}")
-                        }
+                    // Use new ensureRegistered with autoEnable=true for recovery after boot
+                    val registered = googleSleepApiManager.ensureRegistered(autoEnable = true)
+                    if (registered) {
+                        Log.d(TAG, "✅ Layer 1: Google Sleep API registered")
+                    } else {
+                        Log.w(TAG, "⚠️ Layer 1: Failed to register Google Sleep API")
                     }
                 }
                 
@@ -131,6 +136,17 @@ class LocationRestartReceiver : BroadcastReceiver() {
                 // Schedule Sleep AlarmManager (Layer 3 - most reliable)
                 SleepAlarmManager.scheduleAllMorningAlarms(context)
                 Log.d(TAG, "✅ Layer 3: Sleep alarms scheduled")
+                
+                // CRITICAL FIX: Schedule Force Sleep Sync (Layer 4 - backup)
+                // This ensures we get data even if all other layers fail
+                ForceSleepSyncWorker.scheduleForceSync(context)
+                Log.d(TAG, "✅ Layer 4: Force sleep sync workers scheduled")
+                
+                // Check if we need to reset sleep state (new day after boot)
+                if (DailySleepResetWorker.needsReset(context)) {
+                    Log.d(TAG, "New day detected after boot, triggering immediate reset")
+                    DailySleepResetWorker.triggerImmediateReset(context)
+                }
                 
             } catch (e: Exception) {
                 Log.e(TAG, "Error restarting sleep tracking", e)

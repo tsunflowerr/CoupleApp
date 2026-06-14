@@ -44,11 +44,20 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.LocalTime
 import androidx.compose.foundation.lazy.LazyColumn
+import android.Manifest
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
+import com.google.accompanist.permissions.shouldShowRationale
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import java.time.LocalDateTime
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun SleepTrackerScreen(
     onBackClick: () -> Unit,
@@ -75,7 +84,20 @@ fun SleepTrackerScreen(
     var showHealthConnectPermissionDialog by remember { mutableStateOf(false) }
     var showActivityRecognitionPermissionDialog by remember { mutableStateOf(false) }
     var visible by remember { mutableStateOf(false) }
+    
+    // Activity Recognition permission state
+    val activityRecognitionPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        rememberPermissionState(Manifest.permission.ACTIVITY_RECOGNITION)
+    } else null
     var selectedBottomNavItem by remember { mutableStateOf<BottomNavItem?>(null) }
+    
+    // Auto-enable Google Sleep API when permission is granted
+    LaunchedEffect(activityRecognitionPermission?.status?.isGranted) {
+        if (activityRecognitionPermission?.status?.isGranted == true) {
+            // Permission just granted, enable Google Sleep API
+            viewModel.enableGoogleSleepApi()
+        }
+    }
     
     // Lifecycle observer to refresh sleep state when app resumes
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
@@ -624,7 +646,21 @@ fun SleepTrackerScreen(
                 onDismiss = { showActivityRecognitionPermissionDialog = false },
                 onRequestPermission = { 
                     showActivityRecognitionPermissionDialog = false
-                    // Permission request is handled by the system
+                    // Request permission directly first
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        activityRecognitionPermission?.let { permission ->
+                            if (permission.status.shouldShowRationale) {
+                                // Permission denied before, open app settings
+                                val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                    data = Uri.fromParts("package", context.packageName, null)
+                                }
+                                context.startActivity(intent)
+                            } else {
+                                // Request permission normally
+                                permission.launchPermissionRequest()
+                            }
+                        }
+                    }
                 }
             )
         }

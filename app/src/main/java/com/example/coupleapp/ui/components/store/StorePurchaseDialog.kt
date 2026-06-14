@@ -116,105 +116,111 @@ fun PurchaseConfirmDialog(
                         }
                     }
                     
-                    // RIGHT: Quantity selection
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(top = 4.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.quantity),
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF5D4037)
-                        )
-                        
-                        // +/- buttons with current quantity
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    // RIGHT: Quantity selection - ONLY for COIN purchases
+                    // FREE_DAILY and WATCH_AD packages should always be quantity = 1
+                    if (item.purchaseType == PurchaseType.COIN) {
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(top = 4.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            // Minus button
-                            QuantityButton(
-                                text = "−",
-                                enabled = quantity > 1,
-                                onClick = { 
-                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    onQuantityChange(quantity - 1)
-                                }
+                            Text(
+                                text = stringResource(R.string.quantity),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF5D4037)
                             )
                             
-                            // Current quantity display
-                            Box(
-                                modifier = Modifier
-                                    .size(45.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(Color.White)
-                                    .border(2.dp, Color(0xFFFFB300), RoundedCornerShape(12.dp)),
-                                contentAlignment = Alignment.Center
+                            // +/- buttons with current quantity
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Text(
-                                    text = "$quantity",
-                                    fontSize = 19.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF5D4037)
-                                )
-                            }
-                            
-                            // Plus button
-                            QuantityButton(
-                                text = "+",
-                                enabled = true,
-                                onClick = { 
-                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    onQuantityChange(quantity + 1)
-                                }
-                            )
-                        }
-                        
-                        // Quick select buttons (3, 5, 10)
-                        Text(
-                            text = stringResource(R.string.quick_select),
-                            fontSize = 11.sp,
-                            color = Color(0xFF8D6E63),
-                            modifier = Modifier.padding(top = 2.dp)
-                        )
-                        
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            QuickSelectButton(
-                                number = 3,
-                                isSelected = quantity == 3,
-                                onClick = { 
-                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    onQuantityChange(3)
-                                }
-                            )
-                            QuickSelectButton(
-                                number = 5,
-                                isSelected = quantity == 5,
-                                onClick = { 
-                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    onQuantityChange(5)
-                                }
-                            )
-                            // Wrap button 10 in a Box to contain the badge overflow
-                            Box {
-                                QuickSelectButton(
-                                    number = 10,
-                                    isSelected = quantity == 10,
-                                    hasBonus = true,
+                                // Minus button
+                                QuantityButton(
+                                    text = "−",
+                                    enabled = quantity > 1,
                                     onClick = { 
                                         hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        onQuantityChange(10)
+                                        onQuantityChange(quantity - 1)
+                                    }
+                                )
+                                
+                                // Current quantity display
+                                Box(
+                                    modifier = Modifier
+                                        .size(45.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(Color.White)
+                                        .border(2.dp, Color(0xFFFFB300), RoundedCornerShape(12.dp)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "$quantity",
+                                        fontSize = 19.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF5D4037)
+                                    )
+                                }
+                                
+                                // Plus button
+                                QuantityButton(
+                                    text = "+",
+                                    enabled = true,
+                                    onClick = { 
+                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        onQuantityChange(quantity + 1)
                                     }
                                 )
                             }
+                            
+                            // Quick select buttons (3, 5, 10)
+                            Text(
+                                text = stringResource(R.string.quick_select),
+                                fontSize = 11.sp,
+                                color = Color(0xFF8D6E63),
+                                modifier = Modifier.padding(top = 2.dp)
+                            )
+                            
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                QuickSelectButton(
+                                    number = 3,
+                                    isSelected = quantity == 3,
+                                    onClick = { 
+                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        onQuantityChange(3)
+                                    }
+                                )
+                                QuickSelectButton(
+                                    number = 5,
+                                    isSelected = quantity == 5,
+                                    onClick = { 
+                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        onQuantityChange(5)
+                                    }
+                                )
+                                // Wrap button 10 in a Box to contain the badge overflow
+                                Box {
+                                    QuickSelectButton(
+                                        number = 10,
+                                        isSelected = quantity == 10,
+                                        hasBonus = true,
+                                        onClick = { 
+                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            onQuantityChange(10)
+                                        }
+                                    )
+                                }
+                            }
                         }
+                    } else {
+                        // For FREE and AD packages, show empty space to maintain layout
+                        Spacer(modifier = Modifier.weight(1f))
                     }
                 }
                 

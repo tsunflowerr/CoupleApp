@@ -344,6 +344,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         // Timeout handler in case Firebase never responds
         viewModelScope.launch {
             var callbackReceived = false
+            val sentText = text // Capture text before clearing
             
             newMessageRef.setValue(messageData)
                 .addOnSuccessListener {
@@ -351,6 +352,31 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                     Log.d(TAG, "[CHAT] ✅ Message sent successfully to Firebase")
                     _messageText.value = ""
                     _isSending.value = false
+                    
+                    // Send push notification to partner (for when their app is closed)
+                    viewModelScope.launch {
+                        try {
+                            // Create message preview (max 50 chars)
+                            val preview = if (sentText.length > 50) {
+                                sentText.take(47) + "..."
+                            } else {
+                                sentText
+                            }
+                            
+                            val success = com.example.coupleapp.util.SyncTriggerHelper.notifyMessageSent(
+                                context = appContext,
+                                messagePreview = preview
+                            )
+                            
+                            if (success) {
+                                Log.d(TAG, "[CHAT] 📨 Push notification sent to partner")
+                            } else {
+                                Log.w(TAG, "[CHAT] ⚠️ Failed to send push notification to partner")
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "[CHAT] ❌ Error sending push notification", e)
+                        }
+                    }
                 }
                 .addOnFailureListener { error ->
                     callbackReceived = true

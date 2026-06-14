@@ -31,17 +31,6 @@ object SyncTriggerHelper {
     private val firestore = FirebaseFirestore.getInstance()
     
     /**
-     * Data types that can be synced
-     */
-    object DataType {
-        const val ALL = "all"
-        const val PHOTOS = "photos"     // Locket photos
-        const val MISSING = "missing"   // Missing you signals
-        const val SLEEP = "sleep"       // Sleep data
-        const val LOCATION = "location" // Location data
-    }
-    
-    /**
      * Send a sync trigger to partner.
      * Call this whenever you upload data that partner's widget should display.
      * 
@@ -155,6 +144,35 @@ object SyncTriggerHelper {
             priority = "high",
             extraData = questionText
         )
+    }
+    
+    /**
+     * Send trigger when a chat message is sent.
+     * This enables push notification to partner when app is closed.
+     * 
+     * @param context Application context
+     * @param messagePreview Short preview of the message (first 50 chars)
+     * @return true if trigger sent successfully
+     */
+    suspend fun notifyMessageSent(context: Context, messagePreview: String): Boolean {
+        return sendTriggerToPartnerWithExtra(
+            context = context,
+            dataType = DataType.MESSAGE,
+            priority = "high",
+            extraData = messagePreview
+        )
+    }
+    
+    /**
+     * Data types that can be synced
+     */
+    object DataType {
+        const val ALL = "all"
+        const val PHOTOS = "photos"     // Locket photos
+        const val MISSING = "missing"   // Missing you signals
+        const val SLEEP = "sleep"       // Sleep data
+        const val LOCATION = "location" // Location data
+        const val MESSAGE = "message"   // Chat messages
     }
     
     /**

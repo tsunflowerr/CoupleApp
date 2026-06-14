@@ -791,7 +791,13 @@ object WidgetDataRepository {
                 Log.d(TAG, "🌐 Fetching location data from Firebase (fallback)")
                 val freshData = fetchLocationDataFromFirebase()
                 if (freshData != null) {
-                    Log.d(TAG, "✅ Fresh data fetched - myName='${freshData.myName}', partnerName='${freshData.partnerName}', myLocation='${freshData.myLocation}'")
+                    Log.d(TAG, "✅ Fresh data fetched:")
+                    Log.d(TAG, "   myName='${freshData.myName}'")
+                    Log.d(TAG, "   partnerName='${freshData.partnerName}'")
+                    Log.d(TAG, "   myLocation='${freshData.myLocation}'")
+                    Log.d(TAG, "   partnerLocation='${freshData.partnerLocation}'")
+                    Log.d(TAG, "   distance=${freshData.distance}")
+                    Log.d(TAG, "   partnerLastUpdate=${freshData.partnerLastUpdate}")
                     cacheLocationData(prefs, freshData)
                     Log.d(TAG, "✅ Data cached to SharedPreferences")
                 } else {

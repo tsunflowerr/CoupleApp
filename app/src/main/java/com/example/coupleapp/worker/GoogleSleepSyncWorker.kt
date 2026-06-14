@@ -63,6 +63,9 @@ class GoogleSleepSyncWorker(
          * Schedule aggressive morning sync (multiple times between 5:30 AM - 12:00 PM)
          * This is the KEY to getting data early like Widgetable!
          * Extended to 12h for late sleepers.
+         * 
+         * CRITICAL FIX: Always schedule for next occurrence (today OR tomorrow)
+         * This ensures continuous daily operation, not just 1 day
          */
         fun scheduleAggressiveMorningSync(context: Context) {
             // Schedule syncs at: 5:30, 6:30, 7:30, 8:30, 9:30, 10:30, 11:30 AM
@@ -77,17 +80,18 @@ class GoogleSleepSyncWorker(
             )
             
             val now = LocalTime.now()
+            var scheduledCount = 0
             
             syncTimes.forEachIndexed { index, targetTime ->
                 val delayMinutes = calculateDelayMinutes(now, targetTime)
                 
-                // Only schedule if in the future
-                if (delayMinutes > 0) {
-                    scheduleOneShotSync(context, delayMinutes, "morning_sync_$index")
-                }
+                // CRITICAL: Always schedule, even if delay is for tomorrow
+                // This ensures syncs continue working every day
+                scheduleOneShotSync(context, delayMinutes, "morning_sync_$index")
+                scheduledCount++
             }
             
-            Log.d(TAG, "Scheduled aggressive morning syncs")
+            Log.d(TAG, "Scheduled $scheduledCount aggressive morning syncs (today + tomorrow)")
         }
         
         /**
@@ -266,6 +270,8 @@ class GoogleSleepSyncWorker(
      * Check sleep state and sync to Firebase if needed.
      * 
      * This handles the case where SleepReceiver didn't run (app killed, Doze mode, etc.)
+     * 
+     * ENHANCED: Better handling of new day detection
      */
     private suspend fun checkAndSyncSleepData(userId: String, prefs: SharedPreferences): Boolean {
         val isSleeping = prefs.getBoolean(KEY_IS_SLEEPING, false)
@@ -281,8 +287,27 @@ class GoogleSleepSyncWorker(
         Log.d(TAG, "Sleep state: isSleeping=$isSleeping, sleepStart=$sleepStartTime, lastEvent=$lastEventTime")
         Log.d(TAG, "  alreadySynced=$alreadySynced, sleepDate=$sleepDate, today=$todayDate")
         
+        // CRITICAL FIX: Reset alreadySynced if it's a new day
+        // This handles the case where DailySleepResetWorker didn't run
+        if (sleepDate.isNotEmpty() && sleepDate != todayDate && alreadySynced) {
+            val currentHour = LocalTime.now().hour
+            
+            // If it's past 4 AM and the sync was from yesterday, reset the flag
+            if (currentHour >= 4) {
+                Log.d(TAG, "⚠️ alreadySynced flag is stale (from $sleepDate), resetting...")
+                prefs.edit()
+                    .putBoolean(KEY_ALREADY_SYNCED_TODAY, false)
+                    .apply()
+                
+                // Continue with sync check
+            }
+        }
+        
+        // Re-read after potential reset
+        val actuallyAlreadySynced = prefs.getBoolean(KEY_ALREADY_SYNCED_TODAY, false)
+        
         // Case 1: Already synced today → skip
-        if (alreadySynced && sleepDate == todayDate) {
+        if (actuallyAlreadySynced && sleepDate == todayDate) {
             Log.d(TAG, "Already synced today, skipping")
             return false
         }
@@ -320,7 +345,7 @@ class GoogleSleepSyncWorker(
         
         // Case 3: Not sleeping but has unsync'd completed sleep session
         // This can happen if SleepReceiver ran but Firebase sync failed
-        if (!isSleeping && sleepStartTime > 0 && !alreadySynced) {
+        if (!isSleeping && sleepStartTime > 0 && !actuallyAlreadySynced) {
             val sleepDuration = (lastEventTime - sleepStartTime).coerceAtLeast(0)
             
             if (sleepDuration >= MIN_SLEEP_DURATION_MS) {

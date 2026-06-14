@@ -216,9 +216,68 @@ class CoupleApplication : Application(), Configuration.Provider, LifecycleEventO
     
     /**
      * Schedule sleep sync worker for accurate sleep tracking
+     * 
+     * ================================================================
+     * MULTI-LAYER SLEEP TRACKING (5 Layers for maximum reliability)
+     * ================================================================
+     * 
+     * Layer 0: DailySleepResetWorker (NEW - CRITICAL)
+     * ├── Schedule: 00:05 AM và 4:00 AM hàng ngày
+     * ├── Vai trò: Reset flag alreadySynced để sync được ngày mới
+     * └── Battery: ~0%
+     * 
+     * Layer 1: SleepReceiver (Google Sleep API PendingIntent)
+     * ├── Trigger: Google Play Services
+     * ├── Vai trò: Nhận sleep events real-time
+     * └── Issue: PendingIntent bị mất sau RAM clear
+     * 
+     * Layer 2: GoogleSleepSyncWorker (WorkManager morning syncs)
+     * ├── Schedule: 5:30-11:30 AM mỗi giờ + periodic 2h
+     * ├── Vai trò: Sync data sáng sớm như Widgetable
+     * └── Issue: Có thể bị delay bởi Doze
+     * 
+     * Layer 3: SleepAlarmManager (AlarmManager)
+     * ├── Schedule: 6:00, 8:00, 10:00 AM
+     * ├── Vai trò: Backup reliable, chạy cả trong Doze
+     * └── Battery: ~0.02%/day
+     * 
+     * Layer 4: ForceSleepSyncWorker (NEW - CRITICAL)
+     * ├── Schedule: 1:00 PM và 6:00 PM
+     * ├── Vai trò: Backup cuối cùng, đảm bảo có data hàng ngày
+     * └── Battery: ~0%
+     * 
+     * ================================================================
      */
     private fun scheduleSleepSyncWorker() {
-        Log.d("CoupleApplication", "Scheduling sleep sync workers (3 layers)")
+        Log.d("CoupleApplication", "Scheduling sleep sync workers (5 layers)")
+        
+        // LAYER 0 (NEW): Daily reset worker - CRITICAL for daily sync
+        // This ensures alreadySynced flag resets each day
+        com.example.coupleapp.worker.DailySleepResetWorker.scheduleDailyReset(this)
+        Log.d("CoupleApplication", "✅ Layer 0: Daily reset worker scheduled")
+        
+        // CRITICAL: Re-register Google Sleep API on app startup (Layer 1 recovery)
+        // This ensures PendingIntent is restored after RAM clear / reboot
+        applicationScope.launch {
+            try {
+                val googleSleepManager = com.example.coupleapp.data.sleep.GoogleSleepApiManager(this@CoupleApplication)
+                
+                // Use new ensureRegistered with autoEnable=true
+                if (googleSleepManager.hasActivityRecognitionPermission()) {
+                    val registered = googleSleepManager.ensureRegistered(autoEnable = true)
+                    if (registered) {
+                        Log.d("CoupleApplication", "✅ Layer 1: Google Sleep API registered")
+                    } else {
+                        Log.d("CoupleApplication", "⚠️ Layer 1: Google Sleep API not registered (disabled or error)")
+                    }
+                    
+                    // Log debug info
+                    Log.d("CoupleApplication", googleSleepManager.getDebugInfo())
+                }
+            } catch (e: Exception) {
+                Log.e("CoupleApplication", "Error registering Google Sleep API", e)
+            }
+        }
         
         // Health Connect sync (for devices with Health Connect)
         SleepSyncWorker.schedulePeriodicSync(this)
@@ -228,12 +287,26 @@ class CoupleApplication : Application(), Configuration.Provider, LifecycleEventO
         GoogleSleepSyncWorker.schedulePeriodicSync(this)
         GoogleSleepSyncWorker.scheduleAggressiveMorningSync(this)
         GoogleSleepSyncWorker.triggerImmediateSync(this) // Sync now when app opens
+        Log.d("CoupleApplication", "✅ Layer 2: Morning sync workers scheduled")
         
         // LAYER 3: Sleep AlarmManager (most reliable, survives Doze mode)
         com.example.coupleapp.receiver.SleepAlarmManager.scheduleAllMorningAlarms(this)
+        Log.d("CoupleApplication", "✅ Layer 3: Sleep alarms scheduled")
+        
+        // LAYER 4 (NEW): Force sync worker - backup for late sleepers and missed syncs
+        com.example.coupleapp.worker.ForceSleepSyncWorker.scheduleForceSync(this)
+        Log.d("CoupleApplication", "✅ Layer 4: Force sync workers scheduled")
         
         // Schedule wake up reminder (checks active sleep sessions each morning)
         SleepWakeUpReminderWorker.scheduleMorningReminder(this)
+        
+        // Check if we need to reset sleep state (e.g., new day since last app open)
+        applicationScope.launch {
+            if (com.example.coupleapp.worker.DailySleepResetWorker.needsReset(this@CoupleApplication)) {
+                Log.d("CoupleApplication", "New day detected on app open, triggering reset")
+                com.example.coupleapp.worker.DailySleepResetWorker.triggerImmediateReset(this@CoupleApplication)
+            }
+        }
     }
     
     /**

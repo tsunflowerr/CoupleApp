@@ -151,7 +151,7 @@ class SleepWakeUpReminderWorker(
     private suspend fun autoEnableGoogleSleepApiIfPossible() {
         try {
             val googleSleepApiManager = GoogleSleepApiManager(context)
-            val prefs = context.getSharedPreferences("couple_app_prefs", Context.MODE_PRIVATE)
+            val prefs = context.getSharedPreferences("sleep_prefs", Context.MODE_PRIVATE)
             
             // Check nếu đã được enable manually
             val isManuallyEnabled = prefs.getBoolean("google_sleep_api_enabled", false)

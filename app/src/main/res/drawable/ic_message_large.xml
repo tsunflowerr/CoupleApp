@@ -1,0 +1,13 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Large chat bubble icon for notification large icon -->
+    <path
+        android:pathData="M20,2H4C2.9,2 2,2.9 2,4v18l4,-4h14c1.1,0 2,-0.9 2,-2V4C22,2.9 21.1,2 20,2z"
+        android:fillColor="#4CAF50"/>
+    <path
+        android:pathData="M7,9h10v2H7V9zM7,12h7v2H7V12z"
+        android:fillColor="#FFFFFF"/>
+</vector>

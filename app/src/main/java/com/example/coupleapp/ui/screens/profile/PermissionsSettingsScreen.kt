@@ -33,7 +33,14 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.example.coupleapp.R
 import com.example.coupleapp.util.BatteryOptimizationHelper
+import com.example.coupleapp.data.sleep.GoogleSleepApiManager
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
+import com.google.accompanist.permissions.shouldShowRationale
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
  * Permissions Settings Screen
@@ -45,7 +52,7 @@ import kotlinx.coroutines.delay
  * 3. Battery Optimization - Disabled for reliable background work
  * 4. Notifications - For partner alerts
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun PermissionsSettingsScreen(
     onBackClick: () -> Unit = {},
@@ -53,6 +60,30 @@ fun PermissionsSettingsScreen(
 ) {
     val context = LocalContext.current
     var visible by remember { mutableStateOf(false) }
+    
+    // Activity Recognition permission state for direct request
+    val activityRecognitionPermissionState = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        rememberPermissionState(Manifest.permission.ACTIVITY_RECOGNITION)
+    } else null
+    
+    // Coroutine scope for async operations
+    val scope = rememberCoroutineScope()
+    
+    // Auto-enable Google Sleep API when permission is granted
+    LaunchedEffect(activityRecognitionPermissionState?.status?.isGranted) {
+        if (activityRecognitionPermissionState?.status?.isGranted == true) {
+            // Permission just granted, register Google Sleep API
+            kotlinx.coroutines.withContext(Dispatchers.IO) {
+                try {
+                    val sleepManager = GoogleSleepApiManager(context)
+                    sleepManager.ensureRegistered(autoEnable = true)
+                    android.util.Log.d("PermissionsSettings", "✅ Auto-registered Google Sleep API after permission granted")
+                } catch (e: Exception) {
+                    android.util.Log.e("PermissionsSettings", "Failed to register Google Sleep API", e)
+                }
+            }
+        }
+    }
     
     // Permission states - refresh when screen resumes
     var refreshTrigger by remember { mutableStateOf(0) }
@@ -249,7 +280,19 @@ fun PermissionsSettingsScreen(
                                     isGranted = hasActivityRecognition,
                                     importance = PermissionImportance.RECOMMENDED,
                                     onFixClick = {
-                                        openAppSettings(context)
+                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                            activityRecognitionPermissionState?.let { permission ->
+                                                if (permission.status.shouldShowRationale) {
+                                                    // Permission denied before, open app settings
+                                                    openAppSettings(context)
+                                                } else if (!permission.status.isGranted) {
+                                                    // Request permission directly
+                                                    permission.launchPermissionRequest()
+                                                }
+                                            } ?: openAppSettings(context)
+                                        } else {
+                                            openAppSettings(context)
+                                        }
                                     }
                                 )
                                 
